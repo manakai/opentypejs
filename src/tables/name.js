@@ -630,8 +630,10 @@ function parseNameTable(data, start, ltag) {
     const name = {};
     const p = new parse.Parser(data, start);
     const format = p.parseUShort();
+    name.tableVersion = format;
     const count = p.parseUShort();
     const stringOffset = p.offset + p.parseUShort();
+    name.records = [];
     for (let i = 0; i < count; i++) {
         const platformID = p.parseUShort();
         const encodingID = p.parseUShort();
@@ -658,6 +660,14 @@ function parseNameTable(data, start, ltag) {
 
                 translations[language] = text;
             }
+
+            name.records.push ({
+                platformID,
+                encodingID,
+                languageID,
+                nameID,
+                string: text,
+            });
         }
     }
 
