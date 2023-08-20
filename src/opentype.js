@@ -25,7 +25,9 @@ import gpos from './tables/gpos';
 import gsub from './tables/gsub';
 import head from './tables/head';
 import hhea from './tables/hhea';
+import vhea from './tables/vhea';
 import hmtx from './tables/hmtx';
+import vmtx from './tables/vmtx';
 import kern from './tables/kern';
 import ltag from './tables/ltag';
 import loca from './tables/loca';
@@ -34,6 +36,7 @@ import _name from './tables/name';
 import os2 from './tables/os2';
 import post from './tables/post';
 import meta from './tables/meta';
+import base from './tables/base';
 
 /**
  * The opentype library.
@@ -218,15 +221,19 @@ function parseBuffer(buffer, opt) {
     let gposTableEntry;
     let gsubTableEntry;
     let hmtxTableEntry;
+    let vmtxTableEntry;
     let kernTableEntry;
     let locaTableEntry;
     let nameTableEntry;
     let metaTableEntry;
+    let postTableEntry;
     let p;
 
+    font.tableTags = [];
     for (let i = 0; i < numTables; i += 1) {
         const tableEntry = tableEntries[i];
         let table;
+        font.tableTags.push (tableEntry.tag);
         switch (tableEntry.tag) {
             case 'cmap':
                 table = uncompressTable(data, tableEntry);
@@ -259,8 +266,20 @@ function parseBuffer(buffer, opt) {
                 font.descender = font.tables.hhea.descender;
                 font.numberOfHMetrics = font.tables.hhea.numberOfHMetrics;
                 break;
+            case 'vhea':
+                table = uncompressTable(data, tableEntry);
+                font.tables.vhea = vhea.parse(table.data, table.offset);
+                font.vertTypoAscender = font.tables.vhea.vertTypoAscender;
+                font.vertTypoDescender = font.tables.vhea.vertTypoDescender;
+                font.numberOfLongVerMetrics = font.tables.vhea.numberOfLongVerMetrics;
+                break;
             case 'hmtx':
                 hmtxTableEntry = tableEntry;
+                font.tables.hmtx = {};
+                break;
+            case 'vmtx':
+                vmtxTableEntry = tableEntry;
+                font.tables.vmtx = {};
                 break;
             case 'ltag':
                 table = uncompressTable(data, tableEntry);
@@ -286,11 +305,12 @@ function parseBuffer(buffer, opt) {
                 table = uncompressTable(data, tableEntry);
                 font.tables.os2 = os2.parse(table.data, table.offset);
                 break;
-            case 'post':
+            case 'BASE':
                 table = uncompressTable(data, tableEntry);
-                font.tables.post = post.parse(table.data, table.offset);
-                font.glyphNames = new GlyphNames(font.tables.post);
+                font.tables.base = base.parse(table.data, table.offset);
                 break;
+            case 'post':
+                postTableEntry = tableEntry;
             case 'prep' :
                 table = uncompressTable(data, tableEntry);
                 p = new parse.Parser(table.data, table.offset);
@@ -298,9 +318,11 @@ function parseBuffer(buffer, opt) {
                 break;
             case 'glyf':
                 glyfTableEntry = tableEntry;
+                font.tables.glyf = {};
                 break;
             case 'loca':
                 locaTableEntry = tableEntry;
+                font.tables.loca = {};
                 break;
             case 'CFF ':
                 cffTableEntry = tableEntry;
@@ -340,9 +362,21 @@ function parseBuffer(buffer, opt) {
         throw new Error('Font doesn\'t contain TrueType or CFF outlines.');
     }
 
+    if (postTableEntry) {
+        const postTable = uncompressTable(data, postTableEntry);
+        font.tables.post = post.parse(postTable.data, postTable.offset, font.numGlyphs);
+        font.glyphNames = new GlyphNames(font.tables.post);
+    }
+
     const hmtxTable = uncompressTable(data, hmtxTableEntry);
     hmtx.parse(font, hmtxTable.data, hmtxTable.offset, font.numberOfHMetrics, font.numGlyphs, font.glyphs, opt);
     addGlyphNames(font, opt);
+
+    if (vmtxTableEntry) {
+        const vmtxTable = uncompressTable(data, vmtxTableEntry);
+        vmtx.parse(font, vmtxTable.data, vmtxTable.offset, font.numberOfLongVerMetrics, font.numGlyphs, font.glyphs, opt);
+        //addGlyphNames(font, opt);
+    }
 
     if (kernTableEntry) {
         const kernTable = uncompressTable(data, kernTableEntry);

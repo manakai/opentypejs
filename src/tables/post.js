@@ -6,7 +6,7 @@ import parse from '../parse';
 import table from '../table';
 
 // Parse the PostScript `post` table
-function parsePostTable(data, start) {
+function parsePostTable(data, start, numGlyphs) {
     const post = {};
     const p = new parse.Parser(data, start);
     post.version = p.parseVersion();
@@ -20,7 +20,7 @@ function parsePostTable(data, start) {
     post.maxMemType1 = p.parseULong();
     switch (post.version) {
         case 1:
-            post.names = standardNames.slice();
+            post.glyphIDToName = post.names = standardNames.slice();
             break;
         case 2:
             post.numberOfGlyphs = p.parseUShort();
@@ -29,22 +29,57 @@ function parsePostTable(data, start) {
                 post.glyphNameIndex[i] = p.parseUShort();
             }
 
+            let maxNameIndex = Math.max(... post.glyphNameIndex);
+            // For compat, the following constraint is not enforced:
+            //if (maxNameIndex > 32767) maxNameIndex = 32767;
+
             post.names = [];
+            let nameIndexToName = standardNames.slice();
+            delete nameIndexToName[0];
+            for (let i = 258; i < maxNameIndex; i++) {
+                const nameLength = p.parseChar();
+                const name = p.parseString(nameLength);
+                post.names.push(name);
+                nameIndexToName[i] = name;
+            }
+
+            post.glyphIDToName = [];
             for (let i = 0; i < post.numberOfGlyphs; i++) {
-                if (post.glyphNameIndex[i] >= standardNames.length) {
-                    const nameLength = p.parseChar();
-                    post.names.push(p.parseString(nameLength));
-                }
+                const nameIndex = post.glyphNameIndex[i];
+                const name = nameIndexToName[nameIndex];
+                if (name) post.glyphIDToName[i] = name;
             }
 
             break;
         case 2.5:
             post.numberOfGlyphs = p.parseUShort();
             post.offset = new Array(post.numberOfGlyphs);
+            post.names = [];
+            post.glyphIDToName = [];
             for (let i = 0; i < post.numberOfGlyphs; i++) {
-                post.offset[i] = p.parseChar();
+                let offset = post.offset[i] = p.parseChar();
+                const name = standardNames[i + offset];
+                if (name) {
+                    post.names.push(name);
+                    post.glyphIDToName[i] = name;
+                }
             }
 
+            break;
+        case 3:
+            break;
+        case 4:
+            post.names = [];
+            post.glyphIDToName = [];
+            for (let i = 0; i < numGlyphs; i++) {
+                let code = p.parseUShort();
+                if (code !== 0xFFFF) {
+                    let name = 'a' + code.toString(16).toUpperCase();
+                    post.names.push(name);
+                    post.glyphIDToName[i] = name;
+                }
+            }
+      
             break;
     }
     return post;
