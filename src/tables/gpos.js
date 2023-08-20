@@ -76,13 +76,204 @@ subtableParsers[2] = function parseLookup2() {
     }
 };
 
-subtableParsers[3] = function parseLookup3() { return { error: 'GPOS Lookup 3 not supported' }; };
-subtableParsers[4] = function parseLookup4() { return { error: 'GPOS Lookup 4 not supported' }; };
+subtableParsers[3] = function parseLookup3() {
+    const start = this.offset + this.relativeOffset;
+    const posFormat = this.parseUShort();
+    if (posFormat === 1) {
+        return {
+            posFormat: posFormat,
+            coverage: this.parsePointer(Parser.coverage),
+            entryExits: this.parseList(this.parseUShort(), function() {
+                return {
+                    entryAnchor: this.parseAnchor(),
+                    exitAnchor: this.parseAnchor(),
+                };
+            }),
+        };
+    } else {
+        return { error: '0x' + start.toString(16) + ': GPOS lookup type 3 format must be 1.' };
+    }
+};
+
+subtableParsers[4] = function parseLookup4() {
+    const start = this.offset + this.relativeOffset;
+    const posFormat = this.parseUShort();
+    if (posFormat === 1) {
+        let pos = {
+            posFormat: posFormat,
+            markCoverage: this.parsePointer(Parser.coverage),
+            baseCoverage: this.parsePointer(Parser.coverage),
+        };
+        let markClassCount = pos.markClassCount = this.parseUShort();
+
+        pos.marks = this.parsePointer(function () {
+            return this.parseList(this.parseUShort(), function() {
+                return {
+                    markClass: this.parseUShort(),
+                    markAnchor: this.parseAnchor(),
+                };
+            });
+        });
+        pos.bases = this.parsePointer(function () {
+            return this.parseList(this.parseUShort(), function () {
+                return {
+                    baseAnchors: this.parseList(markClassCount, function () {
+                        return this.parseAnchor();
+                    }),
+                };
+            });
+        });
+        return pos;
+    } else {
+        return { error: '0x' + start.toString(16) + ': GPOS lookup type 4 format must be 1 or 2.' };
+    }
+};
+
 subtableParsers[5] = function parseLookup5() { return { error: 'GPOS Lookup 5 not supported' }; };
-subtableParsers[6] = function parseLookup6() { return { error: 'GPOS Lookup 6 not supported' }; };
-subtableParsers[7] = function parseLookup7() { return { error: 'GPOS Lookup 7 not supported' }; };
-subtableParsers[8] = function parseLookup8() { return { error: 'GPOS Lookup 8 not supported' }; };
-subtableParsers[9] = function parseLookup9() { return { error: 'GPOS Lookup 9 not supported' }; };
+
+subtableParsers[6] = function parseLookup6() {
+    const start = this.offset + this.relativeOffset;
+    const posFormat = this.parseUShort();
+    if (posFormat === 1) {
+        let pos = {
+            posFormat: posFormat,
+            mark1Coverage: this.parsePointer(Parser.coverage),
+            mark2Coverage: this.parsePointer(Parser.coverage),
+        };
+        let markClassCount = pos.markClassCount = this.parseUShort();
+
+        pos.mark1s = this.parsePointer(function () {
+            return this.parseList(this.parseUShort(), function() {
+                return {
+                    markClass: this.parseUShort(),
+                    markAnchor: this.parseAnchor(),
+                };
+            });
+        });
+        pos.mark2s = this.parsePointer(function () {
+            return this.parseList(this.parseUShort(), function () {
+                return {
+                    mark2Anchors: this.parseList(markClassCount, function () {
+                        return this.parseAnchor();
+                    }),
+                };
+            });
+        });
+        return pos;
+    } else {
+        return { error: '0x' + start.toString(16) + ': GPOS lookup type 6 format must be 1 or 2.' };
+    }
+};
+
+const lookupRecordDesc = {
+    sequenceIndex: Parser.uShort,
+    lookupListIndex: Parser.uShort
+};
+
+subtableParsers[7] = function parseLookup7() {
+    const start = this.offset + this.relativeOffset;
+    const substFormat = this.parseUShort();
+
+    if (substFormat === 1) {
+        return {
+            posFormat: substFormat,
+            coverage: this.parsePointer(Parser.coverage),
+            ruleSets: this.parseListOfLists(function() {
+                const glyphCount = this.parseUShort();
+                const substCount = this.parseUShort();
+                return {
+                    input: this.parseUShortList(glyphCount - 1),
+                    lookupRecords: this.parseRecordList(substCount, lookupRecordDesc)
+                };
+            })
+        };
+    } else if (substFormat === 2) {
+        return {
+            posFormat: substFormat,
+            coverage: this.parsePointer(Parser.coverage),
+            classDef: this.parsePointer(Parser.classDef),
+            classSets: this.parseListOfLists(function() {
+                const glyphCount = this.parseUShort();
+                const substCount = this.parseUShort();
+                return {
+                    classes: this.parseUShortList(glyphCount - 1),
+                    lookupRecords: this.parseRecordList(substCount, lookupRecordDesc)
+                };
+            })
+        };
+    } else if (substFormat === 3) {
+        const glyphCount = this.parseUShort();
+        const substCount = this.parseUShort();
+        return {
+            posFormat: substFormat,
+            coverages: this.parseList(glyphCount, Parser.pointer(Parser.coverage)),
+            lookupRecords: this.parseRecordList(substCount, lookupRecordDesc)
+        };
+    }
+    check.assert(false, '0x' + start.toString(16) + ': lookup type 7 format must be 1, 2 or 3.');
+};
+
+subtableParsers[8] = function parseLookup8() {
+    const start = this.offset + this.relativeOffset;
+    const substFormat = this.parseUShort();
+    if (substFormat === 1) {
+        return {
+            posFormat: 1,
+            coverage: this.parsePointer(Parser.coverage),
+            chainRuleSets: this.parseListOfLists(function() {
+                return {
+                    backtrack: this.parseUShortList(),
+                    input: this.parseUShortList(this.parseShort() - 1),
+                    lookahead: this.parseUShortList(),
+                    lookupRecords: this.parseRecordList(lookupRecordDesc)
+                };
+            })
+        };
+    } else if (substFormat === 2) {
+        return {
+            posFormat: 2,
+            coverage: this.parsePointer(Parser.coverage),
+            backtrackClassDef: this.parsePointer(Parser.classDef),
+            inputClassDef: this.parsePointer(Parser.classDef),
+            lookaheadClassDef: this.parsePointer(Parser.classDef),
+            chainClassSet: this.parseListOfLists(function() {
+                return {
+                    backtrack: this.parseUShortList(),
+                    input: this.parseUShortList(this.parseShort() - 1),
+                    lookahead: this.parseUShortList(),
+                    lookupRecords: this.parseRecordList(lookupRecordDesc)
+                };
+            })
+        };
+    } else if (substFormat === 3) {
+        return {
+            posFormat: 3,
+            backtrackCoverage: this.parseList(Parser.pointer(Parser.coverage)),
+            inputCoverage: this.parseList(Parser.pointer(Parser.coverage)),
+            lookaheadCoverage: this.parseList(Parser.pointer(Parser.coverage)),
+            lookupRecords: this.parseRecordList(lookupRecordDesc)
+        };
+    }
+    check.assert(false, '0x' + start.toString(16) + ': lookup type 8 format must be 1, 2 or 3.');
+};
+
+subtableParsers[9] = function parseLookup9() {
+    const start = this.offset + this.relativeOffset;
+    const posFormat = this.parseUShort();
+    if (posFormat === 1) {
+        const extensionLookupType = this.parseUShort();
+        const pp = subtableParsers[extensionLookupType];
+        if (pp) {
+            return {
+                posFormat,
+                extensionLookupType,
+                extension: this.parsePointer32(pp),
+            };
+        }
+    } else {
+        return { error: '0x' + start.toString(16) + ': GPOS lookup type 9 format must be 1.' };
+    }
+};
 
 // https://docs.microsoft.com/en-us/typography/opentype/spec/gpos
 function parseGposTable(data, start) {
