@@ -19,6 +19,12 @@ function getShort(dataView, offset) {
     return dataView.getInt16(offset, false);
 }
 
+// Retrieve an unsigned 24-bit long from the DataView.
+// The value is stored in big endian.
+function getUint24(dataView, offset) {
+    return (dataView.getUint16(offset) << 8) + dataView.getUint8(offset + 2);
+}
+
 // Retrieve an unsigned 32-bit long from the DataView.
 // The value is stored in big endian.
 function getULong(dataView, offset) {
@@ -92,6 +98,7 @@ function Parser(data, offset) {
     this.data = data;
     this.offset = offset;
     this.relativeOffset = 0;
+    this.parsed = [];
 }
 
 Parser.prototype.parseByte = function() {
@@ -127,6 +134,12 @@ Parser.prototype.parseShort = function() {
 Parser.prototype.parseF2Dot14 = function() {
     const v = this.data.getInt16(this.offset + this.relativeOffset) / 16384;
     this.relativeOffset += 2;
+    return v;
+};
+
+Parser.prototype.parseUint24 = function() {
+    const v = getUint24(this.data, this.offset + this.relativeOffset);
+    this.relativeOffset += 3;
     return v;
 };
 
@@ -395,7 +408,11 @@ Parser.prototype.parsePointer = function(description) {
     const structOffset = this.parseOffset16();
     if (structOffset > 0) {
         // NULL offset => return undefined
-        return new Parser(this.data, this.offset + structOffset).parseStruct(description);
+        if (this.parsed[structOffset]) {
+            return this.parsed[structOffset];
+        }
+
+        return this.parsed[structOffset] = new Parser(this.data, this.offset + structOffset).parseStruct(description);
     }
     return undefined;
 };
@@ -608,6 +625,68 @@ Parser.prototype.parseFeatureVariationsList = function() {
         });
         return featureVariations;
     }) || [];
+};
+
+
+
+Parser.prototype.parseMinMax = function() {
+    return this.parsePointer(function() {
+        let record = {};
+
+        record.minCoord = this.parseBaseCoord();
+        record.maxCoord = this.parseBaseCoord();
+        record.featMinMaxRecords = this.parseList(this.parseUShort(), function() {
+            let record = {};
+
+            record.featureTableTag = this.parseTag();
+            record.minCoord = this.parseMinMax();
+            record.maxCoord = this.parseMinMax();
+
+            return record;
+        });
+
+        return record;
+    });
+};
+
+Parser.prototype.parseBaseCoord = function() {
+    return this.parsePointer(function() {
+        let coord = {};
+
+        coord.baseCoordFormat = this.parseUShort();
+        coord.coordinate = this.parseShort();
+
+        if (coord.baseCoordFormat === 2) {
+            coord.referenceGlyph = this.parseUShort();
+            coord.baseCoordPoint = this.parseUShort();
+        }
+
+        if (coord.baseCoordFormat >= 3) {
+            //XXX coord.device = ...;
+        }
+
+        return coord;
+    });
+};
+
+Parser.prototype.parseAnchor = function() {
+    return this.parsePointer(function() {
+        let anchor = {};
+
+        anchor.anchorFormat = this.parseUShort();
+        anchor.xCoordinate = this.parseShort();
+        anchor.yCoordinate = this.parseShort();
+
+        if (anchor.anchorFormat === 2) {
+            anchor.anchorPoint = this.parseUShort();
+        } else if (anchor.anchorFormat === 3) {
+            // XXX
+            //anchor.xDeviceOffset
+            //anchor.yDeviceOffset
+        }
+
+        return anchor;
+    });
 };
 
 export default {

@@ -5,17 +5,17 @@ import check from '../check';
 import parse from '../parse';
 import table from '../table';
 
-function parseCmapTableFormat12(cmap, p) {
+function parseCmapTableFormat12(cmap, p, subtable) {
     //Skip reserved.
     p.parseUShort();
 
     // Length in bytes of the sub-tables.
-    cmap.length = p.parseULong();
-    cmap.language = p.parseULong();
+    subtable.length = cmap.length = p.parseULong();
+    subtable.language = cmap.language = p.parseULong();
 
     let groupCount;
-    cmap.groupCount = groupCount = p.parseULong();
-    cmap.glyphIndexMap = {};
+    subtable.groupCount = cmap.groupCount = groupCount = p.parseULong();
+    subtable.glyphIndexMap = cmap.glyphIndexMap = {};
 
     for (let i = 0; i < groupCount; i += 1) {
         const startCharCode = p.parseULong();
@@ -29,25 +29,48 @@ function parseCmapTableFormat12(cmap, p) {
     }
 }
 
-function parseCmapTableFormat4(cmap, p, data, start, offset) {
+function parseCmapTableFormat13(cmap, p, subtable) {
+    //Skip reserved.
+    p.parseUShort();
+
     // Length in bytes of the sub-tables.
-    cmap.length = p.parseUShort();
-    cmap.language = p.parseUShort();
+    subtable.length = cmap.length = p.parseULong();
+    subtable.language = cmap.language = p.parseULong();
+
+    let groupCount;
+    subtable.groupCount = cmap.groupCount = groupCount = p.parseULong();
+    subtable.glyphIndexMap = cmap.glyphIndexMap = {};
+
+    for (let i = 0; i < groupCount; i += 1) {
+        const startCharCode = p.parseULong();
+        const endCharCode = p.parseULong();
+        let startGlyphId = p.parseULong();
+
+        for (let c = startCharCode; c <= endCharCode; c += 1) {
+            cmap.glyphIndexMap[c] = startGlyphId;
+        }
+    }
+}
+
+function parseCmapTableFormat4(cmap, p, subtable, data, offset) {
+    // Length in bytes of the sub-tables.
+    subtable.length = cmap.length = p.parseUShort();
+    subtable.language = cmap.language = p.parseUShort();
 
     // segCount is stored x 2.
     let segCount;
-    cmap.segCount = segCount = p.parseUShort() >> 1;
+    subtable.segCount = cmap.segCount = segCount = p.parseUShort() >> 1;
 
     // Skip searchRange, entrySelector, rangeShift.
     p.skip('uShort', 3);
 
     // The "unrolled" mapping from character codes to glyph indices.
-    cmap.glyphIndexMap = {};
-    const endCountParser = new parse.Parser(data, start + offset + 14);
-    const startCountParser = new parse.Parser(data, start + offset + 16 + segCount * 2);
-    const idDeltaParser = new parse.Parser(data, start + offset + 16 + segCount * 4);
-    const idRangeOffsetParser = new parse.Parser(data, start + offset + 16 + segCount * 6);
-    let glyphIndexOffset = start + offset + 16 + segCount * 8;
+    subtable.glyphIndexMap = cmap.glyphIndexMap = {};
+    const endCountParser = new parse.Parser(data, offset + 14);
+    const startCountParser = new parse.Parser(data, offset + 16 + segCount * 2);
+    const idDeltaParser = new parse.Parser(data, offset + 16 + segCount * 4);
+    const idRangeOffsetParser = new parse.Parser(data, offset + 16 + segCount * 6);
+    let glyphIndexOffset = offset + 16 + segCount * 8;
     for (let i = 0; i < segCount - 1; i += 1) {
         let glyphIndex;
         const endCount = endCountParser.parseUShort();
@@ -78,6 +101,71 @@ function parseCmapTableFormat4(cmap, p, data, start, offset) {
     }
 }
 
+function parseCmapTableFormat14(p, subtable) {
+    // Length in bytes of the sub-tables.
+    subtable.length = p.parseULong();
+
+    let groupCount;
+    subtable.numVarSelectorRecords = groupCount = p.parseULong();
+    subtable.varGlyphIndexMap = [];
+
+    for (let i = 0; i < groupCount; i += 1) {
+        const varSelector = p.parseUint24();
+        const indexMap = [];
+        subtable.varGlyphIndexMap[varSelector] = indexMap;
+
+        const defaultUVSOffset = p.parseOffset32();
+        if (defaultUVSOffset !== 0) {
+            const defaultUVSParser = new parse.Parser(subtable._data, subtable._offset + defaultUVSOffset);
+            const numUnicodeValueRanges = defaultUVSParser.parseULong();
+            for (let j = 0; j < numUnicodeValueRanges; j += 1) {
+                const startUnicodeValue = defaultUVSParser.parseUint24();
+                const additionalCount = defaultUVSParser.parseByte();
+                for (let delta = 0; delta <= additionalCount; delta += 1) {
+                    // same as glyphIndexMap[startUnicodeValue + delta]
+                    indexMap[startUnicodeValue + delta] = -1;
+                }
+            }
+        }
+
+        const nonDefaultUVSOffset = p.parseOffset32();
+        if (nonDefaultUVSOffset !== 0) {
+            const nonDefaultUVSParser = new parse.Parser(subtable._data, subtable._offset + nonDefaultUVSOffset);
+            const numUVSMappings = nonDefaultUVSParser.parseULong();
+            for (let j = 0; j < numUVSMappings; j += 1) {
+                const unicodeValue = nonDefaultUVSParser.parseUint24();
+                const glyphID = nonDefaultUVSParser.parseUShort();
+                indexMap[unicodeValue] = glyphID;
+            }
+        }
+    }
+}
+
+function parseCmapTableFormat6(p, subtable) {
+    // Length in bytes of the sub-tables.
+    subtable.length = p.parseULong();
+    subtable.language = p.parseUShort();
+
+    subtable.glyphIndexMap = [];
+
+    let firstCode = p.parseUShort();
+    let entryCount = p.parseUShort();
+    let lastCode = firstCode + entryCount;
+    for (let c = firstCode; c <= lastCode; c += 1) {
+        subtable.glyphIndexMap[c] = p.parseUShort();
+    }
+}
+
+function parseCmapTableFormat0(p, subtable) {
+    // Length in bytes of the sub-tables.
+    subtable.length = p.parseULong();
+    subtable.language = p.parseUShort();
+
+    subtable.glyphIndexMap = p.parseList(256, function() {
+        return this.parseByte();
+    });
+}
+
 // Parse the `cmap` table. This table stores the mappings from characters to glyphs.
 // There are many available formats, but we only support the Windows format 4 and 12.
 // This function returns a `CmapEncoding` object or null if no supported format could be found.
@@ -89,32 +177,34 @@ function parseCmapTable(data, start) {
     // The cmap table can contain many sub-tables, each with their own format.
     // We're only interested in a "platform 0" (Unicode format) and "platform 3" (Windows format) table.
     cmap.numTables = parse.getUShort(data, start + 2);
-    let offset = -1;
+    cmap.subtables = [];
+    let selectedSubtable;
     for (let i = cmap.numTables - 1; i >= 0; i -= 1) {
-        const platformId = parse.getUShort(data, start + 4 + (i * 8));
-        const encodingId = parse.getUShort(data, start + 4 + (i * 8) + 2);
-        if ((platformId === 3 && (encodingId === 0 || encodingId === 1 || encodingId === 10)) ||
-            (platformId === 0 && (encodingId === 0 || encodingId === 1 || encodingId === 2 || encodingId === 3 || encodingId === 4))) {
-            offset = parse.getULong(data, start + 4 + (i * 8) + 4);
-            break;
+        const platformID = parse.getUShort(data, start + 4 + (i * 8));
+        const encodingID = parse.getUShort(data, start + 4 + (i * 8) + 2);
+        const tableOffset = parse.getULong(data, start + 4 + (i * 8) + 4);
+        let subtable = new CmapSubtable(platformID, encodingID, data, start + tableOffset);
+        cmap.subtables.push(subtable);
+
+        const p = new parse.Parser(data, start + tableOffset);
+        subtable.format = p.parseUShort();
+
+        if (!selectedSubtable) {
+            if ((platformID === 3 && (encodingID === 0 || encodingID === 1 || encodingID === 10)) ||
+                (platformID === 0 && (encodingID === 0 || encodingID === 1 || encodingID === 2 || encodingId === 3 || encodingId === 4))) {
+                selectedSubtable = subtable;
+                cmap.format = subtable.format;
+            }
         }
     }
 
-    if (offset === -1) {
+    if (!selectedSubtable) {
         // There is no cmap table in the font that we support.
         throw new Error('No valid cmap sub-tables found.');
     }
 
-    const p = new parse.Parser(data, start + offset);
-    cmap.format = p.parseUShort();
-
-    if (cmap.format === 12) {
-        parseCmapTableFormat12(cmap, p);
-    } else if (cmap.format === 4) {
-        parseCmapTableFormat4(cmap, p, data, start, offset);
-    } else {
-        throw new Error('Only format 4 and 12 cmap tables are supported (found format ' + cmap.format + ').');
-    }
+    var parsed = selectedSubtable.parse(cmap);
+    if (!parsed) throw new Error('Only format 4 and 12 cmap tables are supported (found format ' + cmap.format + ').');
 
     return cmap;
 }
@@ -283,5 +373,36 @@ function makeCmapTable(glyphs) {
 
     return t;
 }
+
+function CmapSubtable(platformID, encodingID, data, offset) {
+    this.platformID = platformID;
+    this.encodingID = encodingID;
+    this._data = data;
+    this._offset = offset;
+}
+
+CmapSubtable.prototype.parse = function(cmap) {
+    if (!cmap) cmap = {};
+
+    const p = new parse.Parser(this._data, this._offset);
+    p.parseUShort(); // format
+
+    if (this.format === 12) {
+        parseCmapTableFormat12(cmap, p, this);
+    } else if (this.format === 4) {
+        parseCmapTableFormat4(cmap, p, this, this._data, this._offset);
+    } else if (this.format === 14) {
+        parseCmapTableFormat14(p, this);
+    } else if (this.format === 6) {
+        parseCmapTableFormat6(p, this);
+    } else if (this.format === 0) {
+        parseCmapTableFormat0(p, this);
+    } else if (this.format === 13) {
+        parseCmapTableFormat13(cmap, p, this);
+    } else {
+        return false;
+    }
+    return true;
+};
 
 export default { parse: parseCmapTable, make: makeCmapTable };
