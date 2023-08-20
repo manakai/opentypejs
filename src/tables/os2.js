@@ -170,7 +170,7 @@ function parseOS2Table(data, start) {
     os2.ulUnicodeRange2 = p.parseULong();
     os2.ulUnicodeRange3 = p.parseULong();
     os2.ulUnicodeRange4 = p.parseULong();
-    os2.achVendID = String.fromCharCode(p.parseByte(), p.parseByte(), p.parseByte(), p.parseByte());
+    os2.achVendID = p.parseTag();
     os2.fsSelection = p.parseUShort();
     os2.usFirstCharIndex = p.parseUShort();
     os2.usLastCharIndex = p.parseUShort();
@@ -189,7 +189,12 @@ function parseOS2Table(data, start) {
         os2.sCapHeight = p.parseShort();
         os2.usDefaultChar = p.parseUShort();
         os2.usBreakChar = p.parseUShort();
-        os2.usMaxContent = p.parseUShort();
+        os2.usMaxContext = p.parseUShort();
+    }
+
+    if (os2.version >= 5) {
+        os2.usLowerOpticalPointSize = p.parseUShort();
+        os2.usUpperOpticalPointSize = p.parseUShort();
     }
 
     return os2;
