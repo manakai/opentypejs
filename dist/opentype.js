@@ -1388,6 +1388,18 @@
 	 * @returns {string}
 	 */
 	decode.MACSTRING = function(dataView, offset, dataLength, encoding) {
+	    if (encoding === "x-mac-japanese") {
+	        // XXX wrong
+	        var d = new TextDecoder ('shift_jis');
+	        var dv = new DataView (dataView.buffer, offset, dataLength);
+	        return d.decode (dv);
+	    } else if (encoding === "x-mac-chinesetrad") {
+	        // XXX wrong
+	        var d = new TextDecoder ('big5');
+	        var dv = new DataView (dataView.buffer, offset, dataLength);
+	        return d.decode (dv);
+	    }
+	  
 	    var table = eightBitMacEncodings[encoding];
 	    if (table === undefined) {
 	        return undefined;
@@ -1690,8 +1702,14 @@
 	        var k = parseInt(keys[i], 0);
 	        var v = m[k];
 	        // Value comes before the key.
-	        d = d.concat(encode.OPERAND(v.value, v.type));
-	        d = d.concat(encode.OPERATOR(k));
+	        var enc1 = encode.OPERAND(v.value, v.type);
+	        var enc2 = encode.OPERATOR(k);
+	        for (var j = 0; j < enc1.length; j++) {
+	            d.push(enc1[j]);
+	        }
+	        for (var j$1 = 0; j$1 < enc2.length; j$1++) {
+	            d.push(enc2[j$1]);
+	        }
 	    }
 
 	    return d;
@@ -1727,19 +1745,34 @@
 	    if (Array.isArray(type)) {
 	        for (var i = 0; i < type.length; i += 1) {
 	            check.argument(v.length === type.length, 'Not enough arguments given for type' + type);
-	            d = d.concat(encode.OPERAND(v[i], type[i]));
+	            var enc1 = encode.OPERAND(v[i], type[i]);
+	            for (var j = 0; j < enc1.length; j++) {
+	                d.push(enc1[j]);
+	            }
 	        }
 	    } else {
 	        if (type === 'SID') {
-	            d = d.concat(encode.NUMBER(v));
+	            var enc1$1 = encode.NUMBER(v);
+	            for (var j$1 = 0; j$1 < enc1$1.length; j$1++) {
+	                d.push(enc1$1[j$1]);
+	            }
 	        } else if (type === 'offset') {
 	            // We make it easy for ourselves and always encode offsets as
 	            // 4 bytes. This makes offset calculation for the top dict easier.
-	            d = d.concat(encode.NUMBER32(v));
+	            var enc1$2 = encode.NUMBER32(v);
+	            for (var j$2 = 0; j$2 < enc1$2.length; j$2++) {
+	                d.push(enc1$2[j$2]);
+	            }
 	        } else if (type === 'number') {
-	            d = d.concat(encode.NUMBER(v));
+	            var enc1$3 = encode.NUMBER(v);
+	            for (var j$3 = 0; j$3 < enc1$3.length; j$3++) {
+	                d.push(enc1$3[j$3]);
+	            }
 	        } else if (type === 'real') {
-	            d = d.concat(encode.REAL(v));
+	            var enc1$4 = encode.REAL(v);
+	            for (var j$4 = 0; j$4 < enc1$4.length; j$4++) {
+	                d.push(enc1$4[j$4]);
+	            }
 	        } else {
 	            throw new Error('Unknown operand type ' + type);
 	            // FIXME Add support for booleans
@@ -1774,7 +1807,10 @@
 
 	    for (var i = 0; i < length; i += 1) {
 	        var op = ops[i];
-	        d = d.concat(encode[op.type](op.value));
+	        var enc1 = encode[op.type](op.value);
+	        for (var j = 0; j < enc1.length; j++) {
+	            d.push(enc1[j]);
+	        }
 	    }
 
 	    if (wmm) {
@@ -1841,10 +1877,12 @@
 
 	        if (field.type === 'TABLE') {
 	            subtableOffsets.push(d.length);
-	            d = d.concat([0, 0]);
+	            d.push(0, 0);
 	            subtables.push(bytes);
 	        } else {
-	            d = d.concat(bytes);
+	            for (var j = 0; j < bytes.length; j++) {
+	                d.push(bytes[j]);
+	            }
 	        }
 	    }
 
@@ -1854,7 +1892,9 @@
 	        check.argument(offset < 65536, 'Table ' + table.tableName + ' too big.');
 	        d[o] = offset >> 8;
 	        d[o + 1] = offset & 0xff;
-	        d = d.concat(subtables[i$1]);
+	        for (var j$1 = 0; j$1 < subtables[i$1].length; j$1++) {
+	            d.push(subtables[i$1][j$1]);
+	        }
 	    }
 
 	    return d;
@@ -2130,6 +2170,12 @@
 	    return dataView.getInt16(offset, false);
 	}
 
+	// Retrieve an unsigned 24-bit long from the DataView.
+	// The value is stored in big endian.
+	function getUint24(dataView, offset) {
+	    return (dataView.getUint16(offset) << 8) + dataView.getUint8(offset + 2);
+	}
+
 	// Retrieve an unsigned 32-bit long from the DataView.
 	// The value is stored in big endian.
 	function getULong(dataView, offset) {
@@ -2203,6 +2249,7 @@
 	    this.data = data;
 	    this.offset = offset;
 	    this.relativeOffset = 0;
+	    this.parsed = [];
 	}
 
 	Parser.prototype.parseByte = function() {
@@ -2238,6 +2285,12 @@
 	Parser.prototype.parseF2Dot14 = function() {
 	    var v = this.data.getInt16(this.offset + this.relativeOffset) / 16384;
 	    this.relativeOffset += 2;
+	    return v;
+	};
+
+	Parser.prototype.parseUint24 = function() {
+	    var v = getUint24(this.data, this.offset + this.relativeOffset);
+	    this.relativeOffset += 3;
 	    return v;
 	};
 
@@ -2506,7 +2559,11 @@
 	    var structOffset = this.parseOffset16();
 	    if (structOffset > 0) {
 	        // NULL offset => return undefined
-	        return new Parser(this.data, this.offset + structOffset).parseStruct(description);
+	        if (this.parsed[structOffset]) {
+	            return this.parsed[structOffset];
+	        }
+
+	        return this.parsed[structOffset] = new Parser(this.data, this.offset + structOffset).parseStruct(description);
 	    }
 	    return undefined;
 	};
@@ -2721,6 +2778,60 @@
 	    }) || [];
 	};
 
+
+
+	Parser.prototype.parseMinMax = function() {
+	    return this.parsePointer(function() {
+	        var record = {};
+
+	        record.minCoord = this.parseBaseCoord();
+	        record.maxCoord = this.parseBaseCoord();
+	        record.featMinMaxRecords = this.parseList(this.parseUShort(), function() {
+	            var record = {};
+
+	            record.featureTableTag = this.parseTag();
+	            record.minCoord = this.parseMinMax();
+	            record.maxCoord = this.parseMinMax();
+
+	            return record;
+	        });
+
+	        return record;
+	    });
+	};
+
+	Parser.prototype.parseBaseCoord = function() {
+	    return this.parsePointer(function() {
+	        var coord = {};
+
+	        coord.baseCoordFormat = this.parseUShort();
+	        coord.coordinate = this.parseShort();
+
+	        if (coord.baseCoordFormat === 2) {
+	            coord.referenceGlyph = this.parseUShort();
+	            coord.baseCoordPoint = this.parseUShort();
+	        }
+
+	        return coord;
+	    });
+	};
+
+	Parser.prototype.parseAnchor = function() {
+	    return this.parsePointer(function() {
+	        var anchor = {};
+
+	        anchor.anchorFormat = this.parseUShort();
+	        anchor.xCoordinate = this.parseShort();
+	        anchor.yCoordinate = this.parseShort();
+
+	        if (anchor.anchorFormat === 2) {
+	            anchor.anchorPoint = this.parseUShort();
+	        }
+
+	        return anchor;
+	    });
+	};
+
 	var parse = {
 	    getByte: getByte,
 	    getCard8: getByte,
@@ -2738,17 +2849,17 @@
 
 	// The `cmap` table stores the mappings from characters to glyphs.
 
-	function parseCmapTableFormat12(cmap, p) {
+	function parseCmapTableFormat12(cmap, p, subtable) {
 	    //Skip reserved.
 	    p.parseUShort();
 
 	    // Length in bytes of the sub-tables.
-	    cmap.length = p.parseULong();
-	    cmap.language = p.parseULong();
+	    subtable.length = cmap.length = p.parseULong();
+	    subtable.language = cmap.language = p.parseULong();
 
 	    var groupCount;
-	    cmap.groupCount = groupCount = p.parseULong();
-	    cmap.glyphIndexMap = {};
+	    subtable.groupCount = cmap.groupCount = groupCount = p.parseULong();
+	    subtable.glyphIndexMap = cmap.glyphIndexMap = {};
 
 	    for (var i = 0; i < groupCount; i += 1) {
 	        var startCharCode = p.parseULong();
@@ -2762,25 +2873,48 @@
 	    }
 	}
 
-	function parseCmapTableFormat4(cmap, p, data, start, offset) {
+	function parseCmapTableFormat13(cmap, p, subtable) {
+	    //Skip reserved.
+	    p.parseUShort();
+
 	    // Length in bytes of the sub-tables.
-	    cmap.length = p.parseUShort();
-	    cmap.language = p.parseUShort();
+	    subtable.length = cmap.length = p.parseULong();
+	    subtable.language = cmap.language = p.parseULong();
+
+	    var groupCount;
+	    subtable.groupCount = cmap.groupCount = groupCount = p.parseULong();
+	    subtable.glyphIndexMap = cmap.glyphIndexMap = {};
+
+	    for (var i = 0; i < groupCount; i += 1) {
+	        var startCharCode = p.parseULong();
+	        var endCharCode = p.parseULong();
+	        var startGlyphId = p.parseULong();
+
+	        for (var c = startCharCode; c <= endCharCode; c += 1) {
+	            cmap.glyphIndexMap[c] = startGlyphId;
+	        }
+	    }
+	}
+
+	function parseCmapTableFormat4(cmap, p, subtable, data, offset) {
+	    // Length in bytes of the sub-tables.
+	    subtable.length = cmap.length = p.parseUShort();
+	    subtable.language = cmap.language = p.parseUShort();
 
 	    // segCount is stored x 2.
 	    var segCount;
-	    cmap.segCount = segCount = p.parseUShort() >> 1;
+	    subtable.segCount = cmap.segCount = segCount = p.parseUShort() >> 1;
 
 	    // Skip searchRange, entrySelector, rangeShift.
 	    p.skip('uShort', 3);
 
 	    // The "unrolled" mapping from character codes to glyph indices.
-	    cmap.glyphIndexMap = {};
-	    var endCountParser = new parse.Parser(data, start + offset + 14);
-	    var startCountParser = new parse.Parser(data, start + offset + 16 + segCount * 2);
-	    var idDeltaParser = new parse.Parser(data, start + offset + 16 + segCount * 4);
-	    var idRangeOffsetParser = new parse.Parser(data, start + offset + 16 + segCount * 6);
-	    var glyphIndexOffset = start + offset + 16 + segCount * 8;
+	    subtable.glyphIndexMap = cmap.glyphIndexMap = {};
+	    var endCountParser = new parse.Parser(data, offset + 14);
+	    var startCountParser = new parse.Parser(data, offset + 16 + segCount * 2);
+	    var idDeltaParser = new parse.Parser(data, offset + 16 + segCount * 4);
+	    var idRangeOffsetParser = new parse.Parser(data, offset + 16 + segCount * 6);
+	    var glyphIndexOffset = offset + 16 + segCount * 8;
 	    for (var i = 0; i < segCount - 1; i += 1) {
 	        var glyphIndex = (void 0);
 	        var endCount = endCountParser.parseUShort();
@@ -2811,6 +2945,71 @@
 	    }
 	}
 
+	function parseCmapTableFormat14(p, subtable) {
+	    // Length in bytes of the sub-tables.
+	    subtable.length = p.parseULong();
+
+	    var groupCount;
+	    subtable.numVarSelectorRecords = groupCount = p.parseULong();
+	    subtable.varGlyphIndexMap = [];
+
+	    for (var i = 0; i < groupCount; i += 1) {
+	        var varSelector = p.parseUint24();
+	        var indexMap = [];
+	        subtable.varGlyphIndexMap[varSelector] = indexMap;
+
+	        var defaultUVSOffset = p.parseOffset32();
+	        if (defaultUVSOffset !== 0) {
+	            var defaultUVSParser = new parse.Parser(subtable._data, subtable._offset + defaultUVSOffset);
+	            var numUnicodeValueRanges = defaultUVSParser.parseULong();
+	            for (var j = 0; j < numUnicodeValueRanges; j += 1) {
+	                var startUnicodeValue = defaultUVSParser.parseUint24();
+	                var additionalCount = defaultUVSParser.parseByte();
+	                for (var delta = 0; delta <= additionalCount; delta += 1) {
+	                    // same as glyphIndexMap[startUnicodeValue + delta]
+	                    indexMap[startUnicodeValue + delta] = -1;
+	                }
+	            }
+	        }
+
+	        var nonDefaultUVSOffset = p.parseOffset32();
+	        if (nonDefaultUVSOffset !== 0) {
+	            var nonDefaultUVSParser = new parse.Parser(subtable._data, subtable._offset + nonDefaultUVSOffset);
+	            var numUVSMappings = nonDefaultUVSParser.parseULong();
+	            for (var j$1 = 0; j$1 < numUVSMappings; j$1 += 1) {
+	                var unicodeValue = nonDefaultUVSParser.parseUint24();
+	                var glyphID = nonDefaultUVSParser.parseUShort();
+	                indexMap[unicodeValue] = glyphID;
+	            }
+	        }
+	    }
+	}
+
+	function parseCmapTableFormat6(p, subtable) {
+	    // Length in bytes of the sub-tables.
+	    subtable.length = p.parseULong();
+	    subtable.language = p.parseUShort();
+
+	    subtable.glyphIndexMap = [];
+
+	    var firstCode = p.parseUShort();
+	    var entryCount = p.parseUShort();
+	    var lastCode = firstCode + entryCount;
+	    for (var c = firstCode; c <= lastCode; c += 1) {
+	        subtable.glyphIndexMap[c] = p.parseUShort();
+	    }
+	}
+
+	function parseCmapTableFormat0(p, subtable) {
+	    // Length in bytes of the sub-tables.
+	    subtable.length = p.parseULong();
+	    subtable.language = p.parseUShort();
+
+	    subtable.glyphIndexMap = p.parseList(256, function() {
+	        return this.parseByte();
+	    });
+	}
+
 	// Parse the `cmap` table. This table stores the mappings from characters to glyphs.
 	// There are many available formats, but we only support the Windows format 4 and 12.
 	// This function returns a `CmapEncoding` object or null if no supported format could be found.
@@ -2822,32 +3021,34 @@
 	    // The cmap table can contain many sub-tables, each with their own format.
 	    // We're only interested in a "platform 0" (Unicode format) and "platform 3" (Windows format) table.
 	    cmap.numTables = parse.getUShort(data, start + 2);
-	    var offset = -1;
+	    cmap.subtables = [];
+	    var selectedSubtable;
 	    for (var i = cmap.numTables - 1; i >= 0; i -= 1) {
-	        var platformId = parse.getUShort(data, start + 4 + (i * 8));
-	        var encodingId = parse.getUShort(data, start + 4 + (i * 8) + 2);
-	        if ((platformId === 3 && (encodingId === 0 || encodingId === 1 || encodingId === 10)) ||
-	            (platformId === 0 && (encodingId === 0 || encodingId === 1 || encodingId === 2 || encodingId === 3 || encodingId === 4))) {
-	            offset = parse.getULong(data, start + 4 + (i * 8) + 4);
-	            break;
+	        var platformID = parse.getUShort(data, start + 4 + (i * 8));
+	        var encodingID = parse.getUShort(data, start + 4 + (i * 8) + 2);
+	        var tableOffset = parse.getULong(data, start + 4 + (i * 8) + 4);
+	        var subtable = new CmapSubtable(platformID, encodingID, data, start + tableOffset);
+	        cmap.subtables.push(subtable);
+
+	        var p = new parse.Parser(data, start + tableOffset);
+	        subtable.format = p.parseUShort();
+
+	        if (!selectedSubtable) {
+	            if ((platformID === 3 && (encodingID === 0 || encodingID === 1 || encodingID === 10)) ||
+	                (platformID === 0 && (encodingID === 0 || encodingID === 1 || encodingID === 2 || encodingId === 3 || encodingId === 4))) {
+	                selectedSubtable = subtable;
+	                cmap.format = subtable.format;
+	            }
 	        }
 	    }
 
-	    if (offset === -1) {
+	    if (!selectedSubtable) {
 	        // There is no cmap table in the font that we support.
 	        throw new Error('No valid cmap sub-tables found.');
 	    }
 
-	    var p = new parse.Parser(data, start + offset);
-	    cmap.format = p.parseUShort();
-
-	    if (cmap.format === 12) {
-	        parseCmapTableFormat12(cmap, p);
-	    } else if (cmap.format === 4) {
-	        parseCmapTableFormat4(cmap, p, data, start, offset);
-	    } else {
-	        throw new Error('Only format 4 and 12 cmap tables are supported (found format ' + cmap.format + ').');
-	    }
+	    var parsed = selectedSubtable.parse(cmap);
+	    if (!parsed) { throw new Error('Only format 4 and 12 cmap tables are supported (found format ' + cmap.format + ').'); }
 
 	    return cmap;
 	}
@@ -3016,6 +3217,37 @@
 
 	    return t;
 	}
+
+	function CmapSubtable(platformID, encodingID, data, offset) {
+	    this.platformID = platformID;
+	    this.encodingID = encodingID;
+	    this._data = data;
+	    this._offset = offset;
+	}
+
+	CmapSubtable.prototype.parse = function(cmap) {
+	    if (!cmap) { cmap = {}; }
+
+	    var p = new parse.Parser(this._data, this._offset);
+	    p.parseUShort(); // format
+
+	    if (this.format === 12) {
+	        parseCmapTableFormat12(cmap, p, this);
+	    } else if (this.format === 4) {
+	        parseCmapTableFormat4(cmap, p, this, this._data, this._offset);
+	    } else if (this.format === 14) {
+	        parseCmapTableFormat14(p, this);
+	    } else if (this.format === 6) {
+	        parseCmapTableFormat6(p, this);
+	    } else if (this.format === 0) {
+	        parseCmapTableFormat0(p, this);
+	    } else if (this.format === 13) {
+	        parseCmapTableFormat13(cmap, p, this);
+	    } else {
+	        return false;
+	    }
+	    return true;
+	};
 
 	var cmap = { parse: parseCmapTable, make: makeCmapTable };
 
@@ -3355,6 +3587,7 @@
 	        }
 	    };
 	}
+
 	/**
 	 * @typedef GlyphOptions
 	 * @type Object
@@ -3366,6 +3599,7 @@
 	 * @property {number} [xMax]
 	 * @property {number} [yMax]
 	 * @property {number} [advanceWidth]
+	 * @property {number} [leftSideBearing]
 	 */
 
 	// A Glyph is an individual mark that often corresponds to a character.
@@ -3416,6 +3650,10 @@
 
 	    if ('advanceWidth' in options) {
 	        this.advanceWidth = options.advanceWidth;
+	    }
+
+	    if ('leftSideBearing' in options) {
+	        this.leftSideBearing = options.leftSideBearing;
 	    }
 
 	    // The path for a glyph is the most memory intensive, and is bound as a value
@@ -3763,6 +4001,10 @@
 
 	        this.glyphs[index].advanceWidth = this.font._hmtxTableData[index].advanceWidth;
 	        this.glyphs[index].leftSideBearing = this.font._hmtxTableData[index].leftSideBearing;
+	        if (this.font._vmtxTableData) {
+	            this.glyphs[index].advanceHeight = this.font._vmtxTableData[index].advanceHeight;
+	            this.glyphs[index].topSideBearing = this.font._vmtxTableData[index].topSideBearing;
+	        }
 	    } else {
 	        if (typeof this.glyphs[index] === 'function') {
 	            this.glyphs[index] = this.glyphs[index]();
@@ -6042,8 +6284,10 @@
 	    var name = {};
 	    var p = new parse.Parser(data, start);
 	    var format = p.parseUShort();
+	    name.tableVersion = format;
 	    var count = p.parseUShort();
 	    var stringOffset = p.offset + p.parseUShort();
+	    name.records = [];
 	    for (var i = 0; i < count; i++) {
 	        var platformID = p.parseUShort();
 	        var encodingID = p.parseUShort();
@@ -6070,6 +6314,14 @@
 
 	                translations[language] = text;
 	            }
+
+	            name.records.push ({
+	                platformID: platformID,
+	                encodingID: encodingID,
+	                languageID: languageID,
+	                nameID: nameID,
+	                string: text,
+	            });
 	        }
 	    }
 
@@ -6411,7 +6663,7 @@
 	    os2.ulUnicodeRange2 = p.parseULong();
 	    os2.ulUnicodeRange3 = p.parseULong();
 	    os2.ulUnicodeRange4 = p.parseULong();
-	    os2.achVendID = String.fromCharCode(p.parseByte(), p.parseByte(), p.parseByte(), p.parseByte());
+	    os2.achVendID = p.parseTag();
 	    os2.fsSelection = p.parseUShort();
 	    os2.usFirstCharIndex = p.parseUShort();
 	    os2.usLastCharIndex = p.parseUShort();
@@ -6430,7 +6682,12 @@
 	        os2.sCapHeight = p.parseShort();
 	        os2.usDefaultChar = p.parseUShort();
 	        os2.usBreakChar = p.parseUShort();
-	        os2.usMaxContent = p.parseUShort();
+	        os2.usMaxContext = p.parseUShort();
+	    }
+
+	    if (os2.version >= 5) {
+	        os2.usLowerOpticalPointSize = p.parseUShort();
+	        os2.usUpperOpticalPointSize = p.parseUShort();
 	    }
 
 	    return os2;
@@ -6492,7 +6749,7 @@
 	// The `post` table stores additional PostScript information, such as glyph names.
 
 	// Parse the PostScript `post` table
-	function parsePostTable(data, start) {
+	function parsePostTable(data, start, numGlyphs) {
 	    var post = {};
 	    var p = new parse.Parser(data, start);
 	    post.version = p.parseVersion();
@@ -6506,7 +6763,7 @@
 	    post.maxMemType1 = p.parseULong();
 	    switch (post.version) {
 	        case 1:
-	            post.names = standardNames.slice();
+	            post.glyphIDToName = post.names = standardNames.slice();
 	            break;
 	        case 2:
 	            post.numberOfGlyphs = p.parseUShort();
@@ -6515,22 +6772,57 @@
 	                post.glyphNameIndex[i] = p.parseUShort();
 	            }
 
+	            var maxNameIndex = Math.max.apply(Math, post.glyphNameIndex);
+	            // For compat, the following constraint is not enforced:
+	            //if (maxNameIndex > 32767) maxNameIndex = 32767;
+
 	            post.names = [];
-	            for (var i$1 = 0; i$1 < post.numberOfGlyphs; i$1++) {
-	                if (post.glyphNameIndex[i$1] >= standardNames.length) {
-	                    var nameLength = p.parseChar();
-	                    post.names.push(p.parseString(nameLength));
-	                }
+	            var nameIndexToName = standardNames.slice();
+	            delete nameIndexToName[0];
+	            for (var i$1 = 258; i$1 < maxNameIndex; i$1++) {
+	                var nameLength = p.parseChar();
+	                var name = p.parseString(nameLength);
+	                post.names.push(name);
+	                nameIndexToName[i$1] = name;
+	            }
+
+	            post.glyphIDToName = [];
+	            for (var i$2 = 0; i$2 < post.numberOfGlyphs; i$2++) {
+	                var nameIndex = post.glyphNameIndex[i$2];
+	                var name$1 = nameIndexToName[nameIndex];
+	                if (name$1) { post.glyphIDToName[i$2] = name$1; }
 	            }
 
 	            break;
 	        case 2.5:
 	            post.numberOfGlyphs = p.parseUShort();
 	            post.offset = new Array(post.numberOfGlyphs);
-	            for (var i$2 = 0; i$2 < post.numberOfGlyphs; i$2++) {
-	                post.offset[i$2] = p.parseChar();
+	            post.names = [];
+	            post.glyphIDToName = [];
+	            for (var i$3 = 0; i$3 < post.numberOfGlyphs; i$3++) {
+	                var offset = post.offset[i$3] = p.parseChar();
+	                var name$2 = standardNames[i$3 + offset];
+	                if (name$2) {
+	                    post.names.push(name$2);
+	                    post.glyphIDToName[i$3] = name$2;
+	                }
 	            }
 
+	            break;
+	        case 3:
+	            break;
+	        case 4:
+	            post.names = [];
+	            post.glyphIDToName = [];
+	            for (var i$4 = 0; i$4 < numGlyphs; i$4++) {
+	                var code = p.parseUShort();
+	                if (code !== 0xFFFF) {
+	                    var name$3 = 'a' + code.toString(16).toUpperCase();
+	                    post.names.push(name$3);
+	                    post.glyphIDToName[i$4] = name$3;
+	                }
+	            }
+	      
 	            break;
 	    }
 	    return post;
@@ -6564,7 +6856,7 @@
 	        return {
 	            substFormat: 1,
 	            coverage: this.parsePointer(Parser.coverage),
-	            deltaGlyphId: this.parseUShort()
+	            deltaGlyphId: this.parseShort()
 	        };
 	    } else if (substFormat === 2) {
 	        return {
@@ -6768,7 +7060,7 @@
 	        return new table.Table('substitutionTable', [
 	            {name: 'substFormat', type: 'USHORT', value: 1},
 	            {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)},
-	            {name: 'deltaGlyphID', type: 'USHORT', value: subtable.deltaGlyphId}
+	            {name: 'deltaGlyphID', type: 'SHORT', value: subtable.deltaGlyphId}
 	        ]);
 	    } else {
 	        return new table.Table('substitutionTable', [
@@ -6885,13 +7177,16 @@
 	// https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6meta.html
 	function parseMetaTable(data, start) {
 	    var p = new parse.Parser(data, start);
+	    var table = {};
 	    var tableVersion = p.parseULong();
 	    check.argument(tableVersion === 1, 'Unsupported META table version.');
-	    p.parseULong(); // flags - currently unused and set to 0
+	    table.version = tableVersion;
+	    table.flags = p.parseULong(); // flags - currently unused and set to 0
 	    p.parseULong(); // tableOffset
 	    var numDataMaps = p.parseULong();
 
 	    var tags = {};
+	    tags._table = table;
 	    for (var i = 0; i < numDataMaps; i++) {
 	        var tag = p.parseTag();
 	        var dataOffset = p.parseULong();
@@ -8138,7 +8433,7 @@
 	}
 
 	function arrayBufferToNodeBuffer(ab) {
-	    var buffer = new Buffer(ab.byteLength);
+	    var buffer = Buffer.alloc(ab.byteLength);
 	    var view = new Uint8Array(ab);
 	    for (var i = 0; i < buffer.length; ++i) {
 	        buffer[i] = view[i];
@@ -12479,7 +12774,6 @@
 	 */
 	FeatureQuery.prototype.lookupFeature = function (query) {
 	    var contextParams = query.contextParams;
-	    var currentIndex = contextParams.index;
 	    var feature = this.getFeature({
 	        tag: query.tag, script: query.script
 	    });
@@ -12489,6 +12783,11 @@
 	        "for script '" + (query.script) + "'."
 	    ); }
 	    var lookups = this.getFeatureLookups(feature);
+	  return this._applyFeatureLookups(query.tag, lookups, contextParams);
+	};
+
+	FeatureQuery.prototype._applyFeatureLookups = function(tag, lookups, contextParams) {    
+	    var currentIndex = contextParams.index;
 	    var substitutions = [].concat(contextParams.context);
 	    for (var l = 0; l < lookups.length; l++) {
 	        var lookupTable = lookups[l];
@@ -12503,7 +12802,7 @@
 	                    substitution = lookup(contextParams.current);
 	                    if (substitution) {
 	                        substitutions.splice(currentIndex, 1, new SubstitutionAction({
-	                            id: 11, tag: query.tag, substitution: substitution
+	                            id: 11, tag: tag, substitution: substitution
 	                        }));
 	                    }
 	                    break;
@@ -12511,7 +12810,7 @@
 	                    substitution = lookup(contextParams.current);
 	                    if (substitution) {
 	                        substitutions.splice(currentIndex, 1, new SubstitutionAction({
-	                            id: 12, tag: query.tag, substitution: substitution
+	                            id: 12, tag: tag, substitution: substitution
 	                        }));
 	                    }
 	                    break;
@@ -12519,7 +12818,7 @@
 	                    substitution = lookup(contextParams);
 	                    if (Array.isArray(substitution) && substitution.length) {
 	                        substitutions.splice(currentIndex, 1, new SubstitutionAction({
-	                            id: 63, tag: query.tag, substitution: substitution
+	                            id: 63, tag: tag, substitution: substitution
 	                        }));
 	                    }
 	                    break;
@@ -12527,7 +12826,7 @@
 	                    substitution = lookup(contextParams);
 	                    if (substitution) {
 	                        substitutions.splice(currentIndex, 1, new SubstitutionAction({
-	                            id: 41, tag: query.tag, substitution: substitution
+	                            id: 41, tag: tag, substitution: substitution
 	                        }));
 	                    }
 	                    break;
@@ -12535,7 +12834,7 @@
 	                    substitution = lookup(contextParams.current);
 	                    if (substitution) {
 	                        substitutions.splice(currentIndex, 1, new SubstitutionAction({
-	                            id: 21, tag: query.tag, substitution: substitution
+	                            id: 21, tag: tag, substitution: substitution
 	                        }));
 	                    }
 	                    break;
@@ -14012,13 +14311,204 @@
 	    }
 	};
 
-	subtableParsers$1[3] = function parseLookup3() { return { error: 'GPOS Lookup 3 not supported' }; };
-	subtableParsers$1[4] = function parseLookup4() { return { error: 'GPOS Lookup 4 not supported' }; };
+	subtableParsers$1[3] = function parseLookup3() {
+	    var start = this.offset + this.relativeOffset;
+	    var posFormat = this.parseUShort();
+	    if (posFormat === 1) {
+	        return {
+	            posFormat: posFormat,
+	            coverage: this.parsePointer(Parser.coverage),
+	            entryExits: this.parseList(this.parseUShort(), function() {
+	                return {
+	                    entryAnchor: this.parseAnchor(),
+	                    exitAnchor: this.parseAnchor(),
+	                };
+	            }),
+	        };
+	    } else {
+	        return { error: '0x' + start.toString(16) + ': GPOS lookup type 3 format must be 1.' };
+	    }
+	};
+
+	subtableParsers$1[4] = function parseLookup4() {
+	    var start = this.offset + this.relativeOffset;
+	    var posFormat = this.parseUShort();
+	    if (posFormat === 1) {
+	        var pos = {
+	            posFormat: posFormat,
+	            markCoverage: this.parsePointer(Parser.coverage),
+	            baseCoverage: this.parsePointer(Parser.coverage),
+	        };
+	        var markClassCount = pos.markClassCount = this.parseUShort();
+
+	        pos.marks = this.parsePointer(function () {
+	            return this.parseList(this.parseUShort(), function() {
+	                return {
+	                    markClass: this.parseUShort(),
+	                    markAnchor: this.parseAnchor(),
+	                };
+	            });
+	        });
+	        pos.bases = this.parsePointer(function () {
+	            return this.parseList(this.parseUShort(), function () {
+	                return {
+	                    baseAnchors: this.parseList(markClassCount, function () {
+	                        return this.parseAnchor();
+	                    }),
+	                };
+	            });
+	        });
+	        return pos;
+	    } else {
+	        return { error: '0x' + start.toString(16) + ': GPOS lookup type 4 format must be 1 or 2.' };
+	    }
+	};
+
 	subtableParsers$1[5] = function parseLookup5() { return { error: 'GPOS Lookup 5 not supported' }; };
-	subtableParsers$1[6] = function parseLookup6() { return { error: 'GPOS Lookup 6 not supported' }; };
-	subtableParsers$1[7] = function parseLookup7() { return { error: 'GPOS Lookup 7 not supported' }; };
-	subtableParsers$1[8] = function parseLookup8() { return { error: 'GPOS Lookup 8 not supported' }; };
-	subtableParsers$1[9] = function parseLookup9() { return { error: 'GPOS Lookup 9 not supported' }; };
+
+	subtableParsers$1[6] = function parseLookup6() {
+	    var start = this.offset + this.relativeOffset;
+	    var posFormat = this.parseUShort();
+	    if (posFormat === 1) {
+	        var pos = {
+	            posFormat: posFormat,
+	            mark1Coverage: this.parsePointer(Parser.coverage),
+	            mark2Coverage: this.parsePointer(Parser.coverage),
+	        };
+	        var markClassCount = pos.markClassCount = this.parseUShort();
+
+	        pos.mark1s = this.parsePointer(function () {
+	            return this.parseList(this.parseUShort(), function() {
+	                return {
+	                    markClass: this.parseUShort(),
+	                    markAnchor: this.parseAnchor(),
+	                };
+	            });
+	        });
+	        pos.mark2s = this.parsePointer(function () {
+	            return this.parseList(this.parseUShort(), function () {
+	                return {
+	                    mark2Anchors: this.parseList(markClassCount, function () {
+	                        return this.parseAnchor();
+	                    }),
+	                };
+	            });
+	        });
+	        return pos;
+	    } else {
+	        return { error: '0x' + start.toString(16) + ': GPOS lookup type 6 format must be 1 or 2.' };
+	    }
+	};
+
+	var lookupRecordDesc$1 = {
+	    sequenceIndex: Parser.uShort,
+	    lookupListIndex: Parser.uShort
+	};
+
+	subtableParsers$1[7] = function parseLookup7() {
+	    var start = this.offset + this.relativeOffset;
+	    var substFormat = this.parseUShort();
+
+	    if (substFormat === 1) {
+	        return {
+	            posFormat: substFormat,
+	            coverage: this.parsePointer(Parser.coverage),
+	            ruleSets: this.parseListOfLists(function() {
+	                var glyphCount = this.parseUShort();
+	                var substCount = this.parseUShort();
+	                return {
+	                    input: this.parseUShortList(glyphCount - 1),
+	                    lookupRecords: this.parseRecordList(substCount, lookupRecordDesc$1)
+	                };
+	            })
+	        };
+	    } else if (substFormat === 2) {
+	        return {
+	            posFormat: substFormat,
+	            coverage: this.parsePointer(Parser.coverage),
+	            classDef: this.parsePointer(Parser.classDef),
+	            classSets: this.parseListOfLists(function() {
+	                var glyphCount = this.parseUShort();
+	                var substCount = this.parseUShort();
+	                return {
+	                    classes: this.parseUShortList(glyphCount - 1),
+	                    lookupRecords: this.parseRecordList(substCount, lookupRecordDesc$1)
+	                };
+	            })
+	        };
+	    } else if (substFormat === 3) {
+	        var glyphCount = this.parseUShort();
+	        var substCount = this.parseUShort();
+	        return {
+	            posFormat: substFormat,
+	            coverages: this.parseList(glyphCount, Parser.pointer(Parser.coverage)),
+	            lookupRecords: this.parseRecordList(substCount, lookupRecordDesc$1)
+	        };
+	    }
+	    check.assert(false, '0x' + start.toString(16) + ': lookup type 7 format must be 1, 2 or 3.');
+	};
+
+	subtableParsers$1[8] = function parseLookup8() {
+	    var start = this.offset + this.relativeOffset;
+	    var substFormat = this.parseUShort();
+	    if (substFormat === 1) {
+	        return {
+	            posFormat: 1,
+	            coverage: this.parsePointer(Parser.coverage),
+	            chainRuleSets: this.parseListOfLists(function() {
+	                return {
+	                    backtrack: this.parseUShortList(),
+	                    input: this.parseUShortList(this.parseShort() - 1),
+	                    lookahead: this.parseUShortList(),
+	                    lookupRecords: this.parseRecordList(lookupRecordDesc$1)
+	                };
+	            })
+	        };
+	    } else if (substFormat === 2) {
+	        return {
+	            posFormat: 2,
+	            coverage: this.parsePointer(Parser.coverage),
+	            backtrackClassDef: this.parsePointer(Parser.classDef),
+	            inputClassDef: this.parsePointer(Parser.classDef),
+	            lookaheadClassDef: this.parsePointer(Parser.classDef),
+	            chainClassSet: this.parseListOfLists(function() {
+	                return {
+	                    backtrack: this.parseUShortList(),
+	                    input: this.parseUShortList(this.parseShort() - 1),
+	                    lookahead: this.parseUShortList(),
+	                    lookupRecords: this.parseRecordList(lookupRecordDesc$1)
+	                };
+	            })
+	        };
+	    } else if (substFormat === 3) {
+	        return {
+	            posFormat: 3,
+	            backtrackCoverage: this.parseList(Parser.pointer(Parser.coverage)),
+	            inputCoverage: this.parseList(Parser.pointer(Parser.coverage)),
+	            lookaheadCoverage: this.parseList(Parser.pointer(Parser.coverage)),
+	            lookupRecords: this.parseRecordList(lookupRecordDesc$1)
+	        };
+	    }
+	    check.assert(false, '0x' + start.toString(16) + ': lookup type 8 format must be 1, 2 or 3.');
+	};
+
+	subtableParsers$1[9] = function parseLookup9() {
+	    var start = this.offset + this.relativeOffset;
+	    var posFormat = this.parseUShort();
+	    if (posFormat === 1) {
+	        var extensionLookupType = this.parseUShort();
+	        var pp = subtableParsers$1[extensionLookupType];
+	        if (pp) {
+	            return {
+	                posFormat: posFormat,
+	                extensionLookupType: extensionLookupType,
+	                extension: this.parsePointer32(pp),
+	            };
+	        }
+	    } else {
+	        return { error: '0x' + start.toString(16) + ': GPOS lookup type 9 format must be 1.' };
+	    }
+	};
 
 	// https://docs.microsoft.com/en-us/typography/opentype/spec/gpos
 	function parseGposTable(data, start) {
@@ -14060,6 +14550,113 @@
 	}
 
 	var gpos = { parse: parseGposTable, make: makeGposTable };
+
+	// The `vhea` table contains information for vertical layout.
+
+	// Parse the vertical header `vhea` table
+	function parseVheaTable(data, start) {
+	    var vhea = {};
+	    var p = new parse.Parser(data, start);
+	    vhea.version = p.parseVersion();
+	    vhea.vertTypoAscender = p.parseShort();
+	    vhea.vertTypoDescender = p.parseShort();
+	    vhea.vertTypoLineGap = p.parseShort();
+	    vhea.advanceHeightMax = p.parseUShort();
+	    vhea.minTopSideBearing = p.parseShort();
+	    vhea.minBottomSideBearing = p.parseShort();
+	    vhea.yMaxExtent = p.parseShort();
+	    vhea.caretSlopeRise = p.parseShort();
+	    vhea.caretSlopeRun = p.parseShort();
+	    vhea.caretOffset = p.parseShort();
+	    p.relativeOffset += 8;
+	    vhea.metricDataFormat = p.parseShort();
+	    vhea.numberOfLongVerMetrics = p.parseUShort();
+	    return vhea;
+	}
+
+	function makeVheaTable(options) {
+	    return new table.Table('vhea', [
+	        {name: 'version', type: 'FIXED', value: 0x00011000 /* 0x00010000 */},
+	        {name: 'vertTypoAscender', type: 'FWORD', value: 0},
+	        {name: 'vertTypoDescender', type: 'FWORD', value: 0},
+	        {name: 'vertTypoLineGap', type: 'FWORD', value: 0},
+	        {name: 'advanceHeightMax', type: 'UFWORD', value: 0},
+	        {name: 'minTopSideBearing', type: 'FWORD', value: 0},
+	        {name: 'minBottomSideBearing', type: 'FWORD', value: 0},
+	        {name: 'yMaxExtent', type: 'FWORD', value: 0},
+	        {name: 'caretSlopeRise', type: 'SHORT', value: 1},
+	        {name: 'caretSlopeRun', type: 'SHORT', value: 0},
+	        {name: 'caretOffset', type: 'SHORT', value: 0},
+	        {name: 'reserved1', type: 'SHORT', value: 0},
+	        {name: 'reserved2', type: 'SHORT', value: 0},
+	        {name: 'reserved3', type: 'SHORT', value: 0},
+	        {name: 'reserved4', type: 'SHORT', value: 0},
+	        {name: 'metricDataFormat', type: 'SHORT', value: 0},
+	        {name: 'numberOfLongVerMetrics', type: 'USHORT', value: 0}
+	    ], options);
+	}
+
+	var vhea = { parse: parseVheaTable, make: makeVheaTable };
+
+	// The `vmtx` table contains the vertical metrics for all glyphs.
+
+	function parseVmtxTableAll(data, start, numMetrics, numGlyphs, glyphs) {
+	    var advanceHeight;
+	    var topSideBearing;
+	    var p = new parse.Parser(data, start);
+	    for (var i = 0; i < numGlyphs; i += 1) {
+	        // If the font is monospaced, only one entry is needed. This last entry applies to all subsequent glyphs.
+	        if (i < numMetrics) {
+	            advanceHeight = p.parseUShort();
+	            topSideBearing = p.parseShort();
+	        }
+
+	        var glyph = glyphs.get(i);
+	        glyph.advanceHeight = advanceHeight;
+	        glyph.topSideBearing = topSideBearing;
+	    }
+	}
+
+	function parseVmtxTableOnLowMemory(font, data, start, numMetrics, numGlyphs) {
+	    font._vmtxTableData = {};
+	    var p = new parse.Parser(data, start);
+	    for (var i = 0; i < numGlyphs; i += 1) {
+	        // If the font is monospaced, only one entry is needed. This last entry applies to all subsequent glyphs.
+	        if (i < numMetrics) {
+	            advanceHeight = p.parseUShort();
+	            topSideBearing = p.parseShort();
+	        }
+
+	        font._vmtxTableData[i] = {
+	            advanceHeight: advanceHeight,
+	            topSideBearing: topSideBearing
+	        };
+	    }
+	}
+
+	// Parse the `vmtx` table, which contains the horizontal metrics for all glyphs.
+	// This function augments the glyph array, adding the advanceWidth and leftSideBearing to each glyph.
+	function parseVmtxTable(font, data, start, numMetrics, numGlyphs, glyphs, opt) {
+	    if (opt.lowMemory)
+	        { parseVmtxTableOnLowMemory(font, data, start, numMetrics, numGlyphs); }
+	    else
+	        { parseVmtxTableAll(data, start, numMetrics, numGlyphs, glyphs); }
+	}
+
+	function makeVmtxTable(glyphs) {
+	    var t = new table.Table('vmtx', []);
+	    for (var i = 0; i < glyphs.length; i += 1) {
+	        var glyph = glyphs.get(i);
+	        var advanceHeight = glyph.advanceHeight || 0;
+	        var topSideBearing = glyph.topSideBearing || 0;
+	        t.fields.push({name: 'advanceHeight_' + i, type: 'USHORT', value: advanceHeight});
+	        t.fields.push({name: 'topSideBearing_' + i, type: 'SHORT', value: topSideBearing});
+	    }
+
+	    return t;
+	}
+
+	var vmtx = { parse: parseVmtxTable, make: makeVmtxTable };
 
 	// The `kern` table contains kerning pairs.
 
@@ -14154,6 +14751,75 @@
 	}
 
 	var loca = { parse: parseLocaTable };
+
+	// The `BASE` table contains baselines in OpenType fonts.
+
+	// Parse the `BASE` table
+	function parseBASETable(data, start) {
+	    var base = {};
+	    var p = new parse.Parser(data, start);
+	    base.version = p.parseVersion();
+
+	    base.horizAxisOffset = p.parseOffset16();
+	    base.vertAxisOffset = p.parseOffset16();
+	    ['horizAxis', 'vertAxis'].forEach(function(key) {
+	        base[key] = {};
+	        var axisParser = new parse.Parser(data, start + base[key + 'Offset']);
+
+	        axisParser.parsePointer(function() {
+	            base[key].baselineTags = this.parseList(this.parseUShort(), function() {
+	                return this.parseTag();
+	            });
+	        });
+
+	        axisParser.parsePointer(function() {
+	            base[key].baseScriptRecords = this.parseList(this.parseUShort(), function() {
+	                var record = {};
+	                record.baseScriptTag = this.parseTag();
+	                record.baseScript = this.parsePointer(function() {
+	                    var baseScript = {};
+	                    baseScript.baseValues = this.parsePointer(function() {
+	                        var baseValues = {};
+
+	                        baseValues.defaultBaselineIndex = this.parseUShort();
+	                        baseValues.baseCoords = this.parseList(this.parseUShort(), function() {
+	                            return this.parseBaseCoord();
+	                        });
+
+	                        return baseValues;
+	                    });
+	                    baseScript.defaultMinMax = this.parseMinMax();
+	                    baseScript.baseLangSysRecords = this.parseList(this.parseUShort(), function() {
+	                        var sysRecord = {};
+	                        sysRecord.baseLangSysTag = this.parseTag();
+	                        sysRecord.minMax = this.parseMinMax();
+	                        return sysRecord;
+	                    });
+	                    return baseScript;
+	                });
+
+	                return record;
+	            });
+	        });
+	    });
+
+	    return base;
+	}
+
+	function makeBASETable(options) {
+	    var baseTable = new table.Table('BASE', [
+	        {name: 'majorVersion', type: 'USHORT', value: 1},
+	        {name: 'minorVersion', type: 'USHORT', value: 1},
+	        {name: 'horizAxisOffset', type: 'USHORT', value: 0},
+	        {name: 'vertAxisOffset', type: 'USHORT', value: 0},
+
+	        // version >= 1.1
+	        {name: 'itemVarStoreOffset', type: 'ULONG', value: 0} ], options);
+
+	    return baseTable;
+	}
+
+	var base = { parse: parseBASETable, make: makeBASETable };
 
 	// opentype.js
 
@@ -14340,15 +15006,19 @@
 	    var gposTableEntry;
 	    var gsubTableEntry;
 	    var hmtxTableEntry;
+	    var vmtxTableEntry;
 	    var kernTableEntry;
 	    var locaTableEntry;
 	    var nameTableEntry;
 	    var metaTableEntry;
+	    var postTableEntry;
 	    var p;
 
+	    font.tableTags = [];
 	    for (var i = 0; i < numTables; i += 1) {
 	        var tableEntry = tableEntries[i];
 	        var table = (void 0);
+	        font.tableTags.push (tableEntry.tag);
 	        switch (tableEntry.tag) {
 	            case 'cmap':
 	                table = uncompressTable(data, tableEntry);
@@ -14381,8 +15051,20 @@
 	                font.descender = font.tables.hhea.descender;
 	                font.numberOfHMetrics = font.tables.hhea.numberOfHMetrics;
 	                break;
+	            case 'vhea':
+	                table = uncompressTable(data, tableEntry);
+	                font.tables.vhea = vhea.parse(table.data, table.offset);
+	                font.vertTypoAscender = font.tables.vhea.vertTypoAscender;
+	                font.vertTypoDescender = font.tables.vhea.vertTypoDescender;
+	                font.numberOfLongVerMetrics = font.tables.vhea.numberOfLongVerMetrics;
+	                break;
 	            case 'hmtx':
 	                hmtxTableEntry = tableEntry;
+	                font.tables.hmtx = {};
+	                break;
+	            case 'vmtx':
+	                vmtxTableEntry = tableEntry;
+	                font.tables.vmtx = {};
 	                break;
 	            case 'ltag':
 	                table = uncompressTable(data, tableEntry);
@@ -14408,11 +15090,12 @@
 	                table = uncompressTable(data, tableEntry);
 	                font.tables.os2 = os2.parse(table.data, table.offset);
 	                break;
-	            case 'post':
+	            case 'BASE':
 	                table = uncompressTable(data, tableEntry);
-	                font.tables.post = post.parse(table.data, table.offset);
-	                font.glyphNames = new GlyphNames(font.tables.post);
+	                font.tables.base = base.parse(table.data, table.offset);
 	                break;
+	            case 'post':
+	                postTableEntry = tableEntry;
 	            case 'prep' :
 	                table = uncompressTable(data, tableEntry);
 	                p = new parse.Parser(table.data, table.offset);
@@ -14420,9 +15103,11 @@
 	                break;
 	            case 'glyf':
 	                glyfTableEntry = tableEntry;
+	                font.tables.glyf = {};
 	                break;
 	            case 'loca':
 	                locaTableEntry = tableEntry;
+	                font.tables.loca = {};
 	                break;
 	            case 'CFF ':
 	                cffTableEntry = tableEntry;
@@ -14462,9 +15147,21 @@
 	        throw new Error('Font doesn\'t contain TrueType or CFF outlines.');
 	    }
 
+	    if (postTableEntry) {
+	        var postTable = uncompressTable(data, postTableEntry);
+	        font.tables.post = post.parse(postTable.data, postTable.offset, font.numGlyphs);
+	        font.glyphNames = new GlyphNames(font.tables.post);
+	    }
+
 	    var hmtxTable = uncompressTable(data, hmtxTableEntry);
 	    hmtx.parse(font, hmtxTable.data, hmtxTable.offset, font.numberOfHMetrics, font.numGlyphs, font.glyphs, opt);
 	    addGlyphNames(font, opt);
+
+	    if (vmtxTableEntry) {
+	        var vmtxTable = uncompressTable(data, vmtxTableEntry);
+	        vmtx.parse(font, vmtxTable.data, vmtxTable.offset, font.numberOfLongVerMetrics, font.numGlyphs, font.glyphs, opt);
+	        //addGlyphNames(font, opt);
+	    }
 
 	    if (kernTableEntry) {
 	        var kernTable = uncompressTable(data, kernTableEntry);

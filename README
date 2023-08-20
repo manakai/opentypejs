@@ -1,0 +1,17 @@
+A variant of opentype.js
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a modified version of opentype.js.
+
+See |doc/README.orig.md|, which is the |README.md| of the original
+repository, for more information on the original version.
+
+* Additional features
+
+  - Added support for more table versions and/or fields: |base|,
+    |cmap|, |gpos|, |os2|, |post|, |vhea|, |vmtx|.
+  - Added accessors for more data in font files: |cmap|, |meta|, |name|.
+  - Added tentative support for character encodings: Shift JIS and Big5.
+    In the current implementation they are decoded as Encoding Standard's
+    shift_jis and big5, which is not desired for OpenType font's decoding
+    in fact.
