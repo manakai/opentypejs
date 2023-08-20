@@ -461,6 +461,18 @@ const eightBitMacEncodings = {
  * @returns {string}
  */
 decode.MACSTRING = function(dataView, offset, dataLength, encoding) {
+    if (encoding === "x-mac-japanese") {
+        // XXX wrong
+        var d = new TextDecoder ('shift_jis');
+        var dv = new DataView (dataView.buffer, offset, dataLength);
+        return d.decode (dv);
+    } else if (encoding === "x-mac-chinesetrad") {
+        // XXX wrong
+        var d = new TextDecoder ('big5');
+        var dv = new DataView (dataView.buffer, offset, dataLength);
+        return d.decode (dv);
+    }
+  
     const table = eightBitMacEncodings[encoding];
     if (table === undefined) {
         return undefined;
