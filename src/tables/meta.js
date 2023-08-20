@@ -10,13 +10,16 @@ import table from '../table';
 // https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6meta.html
 function parseMetaTable(data, start) {
     const p = new parse.Parser(data, start);
+    const table = {};
     const tableVersion = p.parseULong();
     check.argument(tableVersion === 1, 'Unsupported META table version.');
-    p.parseULong(); // flags - currently unused and set to 0
+    table.version = tableVersion;
+    table.flags = p.parseULong(); // flags - currently unused and set to 0
     p.parseULong(); // tableOffset
     const numDataMaps = p.parseULong();
 
     const tags = {};
+    tags._table = table;
     for (let i = 0; i < numDataMaps; i++) {
         const tag = p.parseTag();
         const dataOffset = p.parseULong();
