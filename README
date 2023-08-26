@@ -15,3 +15,8 @@ repository, for more information on the original version.
     In the current implementation they are decoded as Encoding Standard's
     shift_jis and big5, which is not desired for OpenType font's decoding
     in fact.
+  - Added support for generation of |cmap| subtable whose |format| is
+    14 (Unicode Variation Sequences).  A variation sequence can be
+    associated with a glyph /glyph/ by the |addVS| method:
+
+      glyph.addVS (0x5922, 0xE0100)

@@ -3035,7 +3035,7 @@
 
 	        if (!selectedSubtable) {
 	            if ((platformID === 3 && (encodingID === 0 || encodingID === 1 || encodingID === 10)) ||
-	                (platformID === 0 && (encodingID === 0 || encodingID === 1 || encodingID === 2 || encodingId === 3 || encodingId === 4))) {
+	                (platformID === 0 && (encodingID === 0 || encodingID === 1 || encodingID === 2 || encodingID === 3 || encodingID === 4))) {
 	                selectedSubtable = subtable;
 	                cmap.format = subtable.format;
 	            }
@@ -3053,8 +3053,8 @@
 	    return cmap;
 	}
 
-	function addSegment(t, code, glyphIndex) {
-	    t.segments.push({
+	function addSegment(segments, code, glyphIndex) {
+	    segments.push({
 	        end: code,
 	        start: code,
 	        delta: -(code - glyphIndex),
@@ -3078,25 +3078,43 @@
 	    var isPlan0Only = true;
 	    var i;
 
+	    var segments = [];
+	    var vsMappings = {};
+	    var hasVS = false;
 	    // Check if we need to add cmap format 12 or if format 4 only is fine
-	    for (i = glyphs.length - 1; i > 0; i -= 1) {
-	        var g = glyphs.get(i);
-	        if (g.unicode > 65535) {
-	            console.log('Adding CMAP format 12 (needed!)');
-	            isPlan0Only = false;
-	            break;
+	    for (i = 0; i < glyphs.length; i += 1) {
+	        var glyph = glyphs.get(i);
+	        for (var j = 0; j < glyph.unicodes.length; j += 1) {
+	            addSegment(segments, glyph.unicodes[j], i);
+	            if (glyph.unicodes[j] > 0xFFFF) {
+	                console.log('Adding CMAP format 12 (needed!)');
+	                isPlan0Only = false;
+	            }
+	        }
+	        for (var j$1 = 0; j$1 < glyph.vses.length; j$1 += 1) {
+	            var vs = glyph.vses[j$1];
+	            if (!vsMappings[vs[1]]) { vsMappings[vs[1]] = {}; }
+	            vsMappings[vs[1]][vs[0]] = i;
+	            hasVS = true;
 	        }
 	    }
 
+	    var nextOffset = 12 + (isPlan0Only ? 0 : 8) + (hasVS ? 8 : 0);
 	    var cmapTable = [
 	        {name: 'version', type: 'USHORT', value: 0},
-	        {name: 'numTables', type: 'USHORT', value: isPlan0Only ? 1 : 2},
+	        {name: 'numTables', type: 'USHORT', value: 1 + (isPlan0Only ? 0 : 1) + (hasVS ? 1 : 0)},
 
 	        // CMAP 4 header
 	        {name: 'platformID', type: 'USHORT', value: 3},
 	        {name: 'encodingID', type: 'USHORT', value: 1},
-	        {name: 'offset', type: 'ULONG', value: isPlan0Only ? 12 : (12 + 8)}
-	    ];
+	        {name: 'offset', type: 'ULONG', value: nextOffset} ];
+	    
+	    if (hasVS)
+	        { cmapTable = cmapTable.concat([
+	            {name: 'cmap14PlatformID', type: 'USHORT', value: 0},
+	            {name: 'cmap14EncodingID', type: 'USHORT', value: 5},
+	            {name: 'cmap14Offset', type: 'ULONG', value: 0}
+	        ]); }
 
 	    if (!isPlan0Only)
 	        { cmapTable = cmapTable.concat([
@@ -3119,18 +3137,9 @@
 
 	    var t = new table.Table('cmap', cmapTable);
 
-	    t.segments = [];
-	    for (i = 0; i < glyphs.length; i += 1) {
-	        var glyph = glyphs.get(i);
-	        for (var j = 0; j < glyph.unicodes.length; j += 1) {
-	            addSegment(t, glyph.unicodes[j], i);
-	        }
-
-	        t.segments = t.segments.sort(function (a, b) {
-	            return a.start - b.start;
-	        });
-	    }
-
+	    t.segments = segments.sort(function (a,b) {
+	        return a.start - b.start;
+	    });
 	    addTerminatorSegment(t);
 
 	    var segCount = t.segments.length;
@@ -3197,13 +3206,14 @@
 	        idDeltas.length * 2 +
 	        idRangeOffsets.length * 2 +
 	        glyphIds.length * 2;
+	    nextOffset += t.cmap4Length;
 
 	    if (!isPlan0Only) {
 	        // CMAP 12 Subtable
 	        var cmap12Length = 16 + // Subtable header
 	            cmap12Groups.length * 4;
 
-	        t.cmap12Offset = 12 + (2 * 2) + 4 + t.cmap4Length;
+	        t.cmap12Offset = nextOffset;
 	        t.fields = t.fields.concat([
 	            {name: 'cmap12Format', type: 'USHORT', value: 12},
 	            {name: 'cmap12Reserved', type: 'USHORT', value: 0},
@@ -3213,6 +3223,59 @@
 	        ]);
 
 	        t.fields = t.fields.concat(cmap12Groups);
+	        nextOffset += cmap12Length;
+	    }
+
+	    if (hasVS) {
+	        // CMAP 14 Subtable
+	        var cmap14Length = 2+4+4; // Subtable header
+
+	        t.fields = t.fields.concat([
+	            {name: 'cmap14Format', type: 'USHORT', value: 14},
+	            {name: 'cmap14Length', type: 'ULONG', value: cmap14Length},
+	            {name: 'cmap14NumVarSelectorRecords', type: 'ULONG', value: 0} ]);
+	        t.cmap14Offset = nextOffset;
+
+	        var j$2 = 0;
+	        var nonDefaultUVSRecords = [];
+	        var uvsNextRecordOffset = 0;
+	        var uvsOffsetFields = [];
+	        Object.keys(vsMappings).sort(function (a, b) {
+	            return a - b;
+	        }).forEach(function (unicode2) {
+	            var uvsOffset = {name: 'cmap14NonDefaultUVSOffset_' + j$2, type: 'ULONG', value: uvsNextRecordOffset};
+	            uvsOffsetFields.push (uvsOffset);
+	            t.fields = t.fields.concat([
+	                {name: 'cmap14VarSelector_' + j$2, type: 'UINT24', value: parseInt(unicode2)},
+	                {name: 'cmap14DefaultUVSOffset_' + j$2, type: 'ULONG', value: 0},
+	                uvsOffset ]);
+	            var k = 0;
+	            var uvsMappings = [
+	                {name: 'cmap14NumUVSMappings_' + j$2, type: 'ULONG', value: 0} ];
+	            uvsNextRecordOffset += 4;
+	            Object.keys(vsMappings[unicode2]).sort(function (a, b) {
+	                return a - b;
+	            }).forEach(function (unicode1) {
+	                uvsMappings.push(
+	                    {name: 'cmap14UnicodeValue_' + j$2 + '_' + k, type: 'UINT24', value: parseInt(unicode1)},
+	                    {name: 'cmap14GlyphID_' + j$2 + '_' + k, type: 'USHORT', value: vsMappings[unicode2][unicode1]}
+	                );
+	                k++;
+	                uvsNextRecordOffset += 3+2;
+	            });
+	            uvsMappings[0].value = k;
+	            nonDefaultUVSRecords = nonDefaultUVSRecords.concat (uvsMappings);
+	            j$2++;
+	        });
+	        t.cmap14NumVarSelectorRecords = j$2;
+	        cmap14Length += (3+4+4)*j$2;
+	        t.cmap14Length = cmap14Length + uvsNextRecordOffset;
+	        
+	        t.fields = t.fields.concat(nonDefaultUVSRecords);
+	        uvsOffsetFields.forEach(function (field) {
+	            field.value += cmap14Length;
+	        });
+	        nextOffset += cmap14Length + uvsNextRecordOffset;
 	    }
 
 	    return t;
@@ -3629,6 +3692,7 @@
 	    this.name = options.name || null;
 	    this.unicode = options.unicode || undefined;
 	    this.unicodes = options.unicodes || options.unicode !== undefined ? [options.unicode] : [];
+	    this.vses = [];
 
 	    // But by binding these values only when necessary, we reduce can
 	    // the memory requirements by almost 3% for larger fonts.
@@ -3671,6 +3735,14 @@
 	    }
 
 	    this.unicodes.push(unicode);
+	};
+
+	/**
+	 * @param {number} - The Unicode code point of the base character.
+	 * @param {number} - The Unicode code point of the variation character.
+	 */
+	Glyph.prototype.addVS = function(unicode1, unicode2) {
+	    this.vses.push([unicode1, unicode2]);
 	};
 
 	/**

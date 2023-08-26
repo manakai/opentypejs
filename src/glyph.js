@@ -65,6 +65,7 @@ Glyph.prototype.bindConstructorValues = function(options) {
     this.name = options.name || null;
     this.unicode = options.unicode || undefined;
     this.unicodes = options.unicodes || options.unicode !== undefined ? [options.unicode] : [];
+    this.vses = [];
 
     // But by binding these values only when necessary, we reduce can
     // the memory requirements by almost 3% for larger fonts.
@@ -107,6 +108,14 @@ Glyph.prototype.addUnicode = function(unicode) {
     }
 
     this.unicodes.push(unicode);
+};
+
+/**
+ * @param {number} - The Unicode code point of the base character.
+ * @param {number} - The Unicode code point of the variation character.
+ */
+Glyph.prototype.addVS = function(unicode1, unicode2) {
+    this.vses.push([unicode1, unicode2]);
 };
 
 /**
