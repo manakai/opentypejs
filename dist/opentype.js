@@ -3081,6 +3081,7 @@
 	    var segments = [];
 	    var vsMappings = {};
 	    var hasVS = false;
+	    var ranges = [];
 	    // Check if we need to add cmap format 12 or if format 4 only is fine
 	    for (i = 0; i < glyphs.length; i += 1) {
 	        var glyph = glyphs.get(i);
@@ -3097,24 +3098,22 @@
 	            vsMappings[vs[1]][vs[0]] = i;
 	            hasVS = true;
 	        }
+	        if (glyph.unicodeRanges) {
+	            for (var j$2 = 0; j$2 < glyph.unicodeRanges.length; j$2++) {
+	                ranges.push([glyph.unicodeRanges[j$2], i]);
+	            }
+	        }
 	    }
 
-	    var nextOffset = 12 + (isPlan0Only ? 0 : 8) + (hasVS ? 8 : 0);
+	    var nextOffset = 12 + (isPlan0Only ? 0 : 8) + (hasVS ? 8 : 0) + (ranges.length ? 8 : 0);
 	    var cmapTable = [
 	        {name: 'version', type: 'USHORT', value: 0},
-	        {name: 'numTables', type: 'USHORT', value: 1 + (isPlan0Only ? 0 : 1) + (hasVS ? 1 : 0)},
+	        {name: 'numTables', type: 'USHORT', value: 1 + (isPlan0Only ? 0 : 1) + (hasVS ? 1 : 0) + (ranges.length ? 1 : 0)},
 
 	        // CMAP 4 header
 	        {name: 'platformID', type: 'USHORT', value: 3},
 	        {name: 'encodingID', type: 'USHORT', value: 1},
 	        {name: 'offset', type: 'ULONG', value: nextOffset} ];
-	    
-	    if (hasVS)
-	        { cmapTable = cmapTable.concat([
-	            {name: 'cmap14PlatformID', type: 'USHORT', value: 0},
-	            {name: 'cmap14EncodingID', type: 'USHORT', value: 5},
-	            {name: 'cmap14Offset', type: 'ULONG', value: 0}
-	        ]); }
 
 	    if (!isPlan0Only)
 	        { cmapTable = cmapTable.concat([
@@ -3122,6 +3121,20 @@
 	            {name: 'cmap12PlatformID', type: 'USHORT', value: 3}, // We encode only for PlatformID = 3 (Windows) because it is supported everywhere
 	            {name: 'cmap12EncodingID', type: 'USHORT', value: 10},
 	            {name: 'cmap12Offset', type: 'ULONG', value: 0}
+	        ]); }
+	    
+	    if (ranges.length)
+	        { cmapTable = cmapTable.concat([
+	            {name: 'cmap13PlatformID', type: 'USHORT', value: 3},
+	            {name: 'cmap13EncodingID', type: 'USHORT', value: 10},
+	            {name: 'cmap13Offset', type: 'ULONG', value: 0}
+	        ]); }
+
+	    if (hasVS)
+	        { cmapTable = cmapTable.concat([
+	            {name: 'cmap14PlatformID', type: 'USHORT', value: 0},
+	            {name: 'cmap14EncodingID', type: 'USHORT', value: 5},
+	            {name: 'cmap14Offset', type: 'ULONG', value: 0}
 	        ]); }
 
 	    cmapTable = cmapTable.concat([
@@ -3226,6 +3239,30 @@
 	        nextOffset += cmap12Length;
 	    }
 
+	    if (ranges.length) {
+	        var cmap13Length = 2 + 2 + 4 + 4 + 4 + (4 + 4 + 4) * ranges.length;
+
+	        t.fields = t.fields.concat([
+	            {name: 'cmap13Format', type: 'USHORT', value: 13},
+	            {name: 'cmap13Reserved', type: 'USHORT', value: 0},
+	            {name: 'cmap13Length', type: 'ULONG', value: cmap13Length},
+	            {name: 'cmap13Language', type: 'ULONG', value: 0},
+	            {name: 'cmap13NumGroups', type: 'ULONG', value: ranges.length} ]);
+	        t.cmap13Offset = nextOffset;
+
+	        var i$1 = 0;
+	        ranges.sort(function (a, b) {
+	            return a[0][0] - b[0][0];
+	        }).forEach(function (range) {
+	            t.fields = t.fields.concat([
+	                {name: 'cmap13StartCharCode_' + i$1, type: 'ULONG', value: range[0][0]},
+	                {name: 'cmap13EndCharCode_' + i$1, type: 'ULONG', value: range[0][1]},
+	                {name: 'cmap13GlyphID_' + i$1, type: 'ULONG', value: range[1]} ]);
+	            i$1++;
+	        });
+	        nextOffset += cmap13Length;
+	    }
+
 	    if (hasVS) {
 	        // CMAP 14 Subtable
 	        var cmap14Length = 2+4+4; // Subtable header
@@ -3236,39 +3273,39 @@
 	            {name: 'cmap14NumVarSelectorRecords', type: 'ULONG', value: 0} ]);
 	        t.cmap14Offset = nextOffset;
 
-	        var j$2 = 0;
+	        var j$3 = 0;
 	        var nonDefaultUVSRecords = [];
 	        var uvsNextRecordOffset = 0;
 	        var uvsOffsetFields = [];
 	        Object.keys(vsMappings).sort(function (a, b) {
 	            return a - b;
 	        }).forEach(function (unicode2) {
-	            var uvsOffset = {name: 'cmap14NonDefaultUVSOffset_' + j$2, type: 'ULONG', value: uvsNextRecordOffset};
+	            var uvsOffset = {name: 'cmap14NonDefaultUVSOffset_' + j$3, type: 'ULONG', value: uvsNextRecordOffset};
 	            uvsOffsetFields.push (uvsOffset);
 	            t.fields = t.fields.concat([
-	                {name: 'cmap14VarSelector_' + j$2, type: 'UINT24', value: parseInt(unicode2)},
-	                {name: 'cmap14DefaultUVSOffset_' + j$2, type: 'ULONG', value: 0},
+	                {name: 'cmap14VarSelector_' + j$3, type: 'UINT24', value: parseInt(unicode2)},
+	                {name: 'cmap14DefaultUVSOffset_' + j$3, type: 'ULONG', value: 0},
 	                uvsOffset ]);
 	            var k = 0;
 	            var uvsMappings = [
-	                {name: 'cmap14NumUVSMappings_' + j$2, type: 'ULONG', value: 0} ];
+	                {name: 'cmap14NumUVSMappings_' + j$3, type: 'ULONG', value: 0} ];
 	            uvsNextRecordOffset += 4;
 	            Object.keys(vsMappings[unicode2]).sort(function (a, b) {
 	                return a - b;
 	            }).forEach(function (unicode1) {
 	                uvsMappings.push(
-	                    {name: 'cmap14UnicodeValue_' + j$2 + '_' + k, type: 'UINT24', value: parseInt(unicode1)},
-	                    {name: 'cmap14GlyphID_' + j$2 + '_' + k, type: 'USHORT', value: vsMappings[unicode2][unicode1]}
+	                    {name: 'cmap14UnicodeValue_' + j$3 + '_' + k, type: 'UINT24', value: parseInt(unicode1)},
+	                    {name: 'cmap14GlyphID_' + j$3 + '_' + k, type: 'USHORT', value: vsMappings[unicode2][unicode1]}
 	                );
 	                k++;
 	                uvsNextRecordOffset += 3+2;
 	            });
 	            uvsMappings[0].value = k;
 	            nonDefaultUVSRecords = nonDefaultUVSRecords.concat (uvsMappings);
-	            j$2++;
+	            j$3++;
 	        });
-	        t.cmap14NumVarSelectorRecords = j$2;
-	        cmap14Length += (3+4+4)*j$2;
+	        t.cmap14NumVarSelectorRecords = j$3;
+	        cmap14Length += (3+4+4)*j$3;
 	        t.cmap14Length = cmap14Length + uvsNextRecordOffset;
 	        
 	        t.fields = t.fields.concat(nonDefaultUVSRecords);
@@ -3735,6 +3772,15 @@
 	    }
 
 	    this.unicodes.push(unicode);
+	};
+
+	/**
+	 * @param {number} - The start Unicode code point of the range.
+	 * @param {number} - The end Unicode code point of the range.
+	 */
+	Glyph.prototype.addUnicodeRange = function(unicode1, unicode2) {
+	    if (!this.unicodeRanges) { this.unicodeRanges = []; }
+	    this.unicodeRanges.push([unicode1, unicode2]);
 	};
 
 	/**
@@ -7523,35 +7569,37 @@
 
 	    for (var i = 0; i < font.glyphs.length; i += 1) {
 	        var glyph = font.glyphs.get(i);
-	        var unicode = glyph.unicode | 0;
 
 	        if (isNaN(glyph.advanceWidth)) {
 	            throw new Error('Glyph ' + glyph.name + ' (' + i + '): advanceWidth is not a number.');
 	        }
 
-	        if (firstCharIndex > unicode || firstCharIndex === undefined) {
+	        glyph.unicodes.filter(function (unicode) {
 	            // ignore .notdef char
-	            if (unicode > 0) {
+	            return unicode > 0;
+	        }).concat(glyph.unicodeRanges || []).flat().forEach(function (unicode) {
+	            if (firstCharIndex > unicode || firstCharIndex === undefined) {
 	                firstCharIndex = unicode;
 	            }
-	        }
 
-	        if (lastCharIndex < unicode) {
-	            lastCharIndex = unicode;
-	        }
+	            if (lastCharIndex < unicode) {
+	                lastCharIndex = unicode;
+	            }
 
-	        var position = os2.getUnicodeRange(unicode);
-	        if (position < 32) {
-	            ulUnicodeRange1 |= 1 << position;
-	        } else if (position < 64) {
-	            ulUnicodeRange2 |= 1 << position - 32;
-	        } else if (position < 96) {
-	            ulUnicodeRange3 |= 1 << position - 64;
-	        } else if (position < 123) {
-	            ulUnicodeRange4 |= 1 << position - 96;
-	        } else {
-	            throw new Error('Unicode ranges bits > 123 are reserved for internal usage');
-	        }
+	            // XXX does not work well with unicodeRanges
+	            var position = os2.getUnicodeRange(unicode);
+	            if (position < 32) {
+	                ulUnicodeRange1 |= 1 << position;
+	            } else if (position < 64) {
+	                ulUnicodeRange2 |= 1 << position - 32;
+	            } else if (position < 96) {
+	                ulUnicodeRange3 |= 1 << position - 64;
+	            } else if (position < 123) {
+	                ulUnicodeRange4 |= 1 << position - 96;
+	            } else {
+	                throw new Error('Unicode ranges bits > 123 are reserved for internal usage');
+	            }
+	        });
 	        // Skip non-important characters.
 	        if (glyph.name === '.notdef') { continue; }
 	        var metrics = glyph.getMetrics();

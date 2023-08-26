@@ -111,6 +111,15 @@ Glyph.prototype.addUnicode = function(unicode) {
 };
 
 /**
+ * @param {number} - The start Unicode code point of the range.
+ * @param {number} - The end Unicode code point of the range.
+ */
+Glyph.prototype.addUnicodeRange = function(unicode1, unicode2) {
+    if (!this.unicodeRanges) this.unicodeRanges = [];
+    this.unicodeRanges.push([unicode1, unicode2]);
+};
+
+/**
  * @param {number} - The Unicode code point of the base character.
  * @param {number} - The Unicode code point of the variation character.
  */

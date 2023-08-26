@@ -148,35 +148,37 @@ function fontToSfntTable(font) {
 
     for (let i = 0; i < font.glyphs.length; i += 1) {
         const glyph = font.glyphs.get(i);
-        const unicode = glyph.unicode | 0;
 
         if (isNaN(glyph.advanceWidth)) {
             throw new Error('Glyph ' + glyph.name + ' (' + i + '): advanceWidth is not a number.');
         }
 
-        if (firstCharIndex > unicode || firstCharIndex === undefined) {
+        glyph.unicodes.filter(function (unicode) {
             // ignore .notdef char
-            if (unicode > 0) {
+            return unicode > 0;
+        }).concat(glyph.unicodeRanges || []).flat().forEach(function (unicode) {
+            if (firstCharIndex > unicode || firstCharIndex === undefined) {
                 firstCharIndex = unicode;
             }
-        }
 
-        if (lastCharIndex < unicode) {
-            lastCharIndex = unicode;
-        }
+            if (lastCharIndex < unicode) {
+                lastCharIndex = unicode;
+            }
 
-        const position = os2.getUnicodeRange(unicode);
-        if (position < 32) {
-            ulUnicodeRange1 |= 1 << position;
-        } else if (position < 64) {
-            ulUnicodeRange2 |= 1 << position - 32;
-        } else if (position < 96) {
-            ulUnicodeRange3 |= 1 << position - 64;
-        } else if (position < 123) {
-            ulUnicodeRange4 |= 1 << position - 96;
-        } else {
-            throw new Error('Unicode ranges bits > 123 are reserved for internal usage');
-        }
+            // XXX does not work well with unicodeRanges
+            const position = os2.getUnicodeRange(unicode);
+            if (position < 32) {
+                ulUnicodeRange1 |= 1 << position;
+            } else if (position < 64) {
+                ulUnicodeRange2 |= 1 << position - 32;
+            } else if (position < 96) {
+                ulUnicodeRange3 |= 1 << position - 64;
+            } else if (position < 123) {
+                ulUnicodeRange4 |= 1 << position - 96;
+            } else {
+                throw new Error('Unicode ranges bits > 123 are reserved for internal usage');
+            }
+        });
         // Skip non-important characters.
         if (glyph.name === '.notdef') continue;
         const metrics = glyph.getMetrics();

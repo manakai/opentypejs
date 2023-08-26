@@ -19,4 +19,10 @@ repository, for more information on the original version.
     14 (Unicode Variation Sequences).  A variation sequence can be
     associated with a glyph /glyph/ by the |addVS| method:
 
-      glyph.addVS (0x5922, 0xE0100)
+      glyph.addVS (0x5922, 0xE0100);
+
+  - Added support for generation of |cmap| subtable whose |format| is
+    13.  A range of Unicode code points can be associated with a
+    glyph /glyph/ by the |addUnicodeRange| method:
+
+      glyph.addUnicodeRange (0x4E00, 0x9FFF);
