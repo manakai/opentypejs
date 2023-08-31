@@ -1247,8 +1247,9 @@ function makeCharStringsIndex(glyphs) {
     const offsets = [offset];
     let data = [];
     const literals = [];
+    let currentLiteralsLength = 1;
     const moveToLiteral = () => {
-        const ab = new ArrayBuffer(offset - 1);
+        const ab = new ArrayBuffer(offset - currentLiteralsLength);
         const b8 = new Uint8Array(ab);
         let x = 0;
         for (let i = 0; i < data.length; i++) {
@@ -1257,15 +1258,15 @@ function makeCharStringsIndex(glyphs) {
             }
         }
         literals.push(b8);
+        currentLiteralsLength += x;
         data = [];
     };
 
     for (let i = 0; i < glyphs.length; i += 1) {
         const glyph = glyphs.get(i);
         const ops = glyphToOps(glyph);
-
-        let d = [];
         const length = ops.length;
+        const d = [];
         for (let j = 0; j < length; j += 1) {
             const op = ops[j];
             const enc1 = encode[op.type](op.value);
@@ -1273,6 +1274,7 @@ function makeCharStringsIndex(glyphs) {
                 d.push(enc1[k]);
             }
         }
+
         data.push(d);
         offset += d.length;
         offsets.push(offset);
@@ -1282,9 +1284,10 @@ function makeCharStringsIndex(glyphs) {
     moveToLiteral();
 
     const v = makeINDEXHeader(offsets, offset);
+    let x = 0;
     let css = new table.Record('CharString value', [
         {name: 'charStrings header', type: 'LITERAL', value: v},
-        ...literals.map(_ => ({name: 'charStrings data', type: 'LITERAL', value: _})),
+        ...literals.map(_ => ({name: 'charStrings data ' + x++, type: 'LITERAL', value: _})),
     ]);
     return css;
 }

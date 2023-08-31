@@ -5519,8 +5519,9 @@ function makeCharStringsIndex(glyphs) {
     var offsets = [offset];
     var data = [];
     var literals = [];
+    var currentLiteralsLength = 1;
     var moveToLiteral = function () {
-        var ab = new ArrayBuffer(offset - 1);
+        var ab = new ArrayBuffer(offset - currentLiteralsLength);
         var b8 = new Uint8Array(ab);
         var x = 0;
         for (var i = 0; i < data.length; i++) {
@@ -5529,15 +5530,15 @@ function makeCharStringsIndex(glyphs) {
             }
         }
         literals.push(b8);
+        currentLiteralsLength += x;
         data = [];
     };
 
     for (var i = 0; i < glyphs.length; i += 1) {
         var glyph = glyphs.get(i);
         var ops = glyphToOps(glyph);
-
-        var d = [];
         var length = ops.length;
+        var d = [];
         for (var j = 0; j < length; j += 1) {
             var op = ops[j];
             var enc1 = encode[op.type](op.value);
@@ -5545,6 +5546,7 @@ function makeCharStringsIndex(glyphs) {
                 d.push(enc1[k]);
             }
         }
+
         data.push(d);
         offset += d.length;
         offsets.push(offset);
@@ -5554,8 +5556,9 @@ function makeCharStringsIndex(glyphs) {
     moveToLiteral();
 
     var v = makeINDEXHeader(offsets, offset);
+    var x = 0;
     var css = new table.Record('CharString value', [
-        {name: 'charStrings header', type: 'LITERAL', value: v} ].concat( literals.map(function (_) { return ({name: 'charStrings data', type: 'LITERAL', value: _}); }) ));
+        {name: 'charStrings header', type: 'LITERAL', value: v} ].concat( literals.map(function (_) { return ({name: 'charStrings data ' + x++, type: 'LITERAL', value: _}); }) ));
     return css;
 }
 
