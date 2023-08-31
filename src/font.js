@@ -495,14 +495,7 @@ Font.prototype.toBuffer = function() {
  */
 Font.prototype.toArrayBuffer = function() {
     const sfntTable = this.toTables();
-    const bytes = sfntTable.encode();
-    const buffer = new ArrayBuffer(bytes.length);
-    const intArray = new Uint8Array(buffer);
-    for (let i = 0; i < bytes.length; i++) {
-        intArray[i] = bytes[i];
-    }
-
-    return buffer;
+    return sfntTable.encodeIntoArrayBuffer();
 };
 
 /**

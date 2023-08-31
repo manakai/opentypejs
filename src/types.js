@@ -16,6 +16,7 @@ const decode = {};
  * @class
  */
 const encode = {};
+const encodeAB = {};
 /**
  * @exports opentype.sizeOf
  * @class
@@ -461,18 +462,18 @@ const eightBitMacEncodings = {
  * @returns {string}
  */
 decode.MACSTRING = function(dataView, offset, dataLength, encoding) {
-    if (encoding === "x-mac-japanese") {
+    if (encoding === 'x-mac-japanese') {
         // XXX wrong
-        var d = new TextDecoder ('shift_jis');
-        var dv = new DataView (dataView.buffer, offset, dataLength);
-        return d.decode (dv);
-    } else if (encoding === "x-mac-chinesetrad") {
+        let d = new TextDecoder('shift_jis');
+        let dv = new DataView(dataView.buffer, offset, dataLength);
+        return d.decode(dv);
+    } else if (encoding === 'x-mac-chinesetrad') {
         // XXX wrong
-        var d = new TextDecoder ('big5');
-        var dv = new DataView (dataView.buffer, offset, dataLength);
-        return d.decode (dv);
+        let d = new TextDecoder('big5');
+        let dv = new DataView(dataView.buffer, offset, dataLength);
+        return d.decode(dv);
     }
-  
+
     const table = eightBitMacEncodings[encoding];
     if (table === undefined) {
         return undefined;
@@ -973,6 +974,58 @@ encode.TABLE = function(table) {
     return d;
 };
 
+encodeAB.TABLE = function(table) {
+    let byteLength = sizeOf.TABLE(table);
+    let ab = new ArrayBuffer(byteLength);
+    let a8 = new Uint8Array(ab);
+    let nextOffset = 0;
+    const put = bytes => {
+        for (let i = 0; i < bytes.length; i++) {
+            a8[nextOffset++] = bytes[i];
+        }
+    };
+
+    const length = table.fields.length;
+    const subtables = [];
+    const subtableOffsets = [];
+
+    for (let i = 0; i < length; i += 1) {
+        const field = table.fields[i];
+        let value = table[field.name];
+        if (value === undefined) {
+            value = field.value;
+        }
+
+        const encodingABFunction = encodeAB[field.type];
+        if (field.type === 'TABLE') {
+            subtableOffsets.push(nextOffset);
+            put([0, 0]);
+            const ab = encodingABFunction(value);
+            subtables.push(ab);
+        } else {
+            if (encodingABFunction) {
+                const ab = encodingABFunction(value);
+                put(new Uint8Array(ab));
+            } else {
+                const encodingFunction = encode[field.type];
+                check.argument(encodingFunction !== undefined, 'No encoding function for field type ' + field.type + ' (' + field.name + ')');
+                const bytes = encodingFunction(value);
+                put(bytes);
+            }
+        }
+    }
+
+    for (let i = 0; i < subtables.length; i += 1) {
+        const o = subtableOffsets[i];
+        a8[o] = nextOffset >> 8;
+        a8[o + 1] = nextOffset & 0xff;
+        const subtable8 = new Uint8Array(subtables[i]);
+        put(subtable8);
+    }
+
+    return ab;
+};
+
 /**
  * @param {opentype.Table}
  * @returns {number}
@@ -1002,6 +1055,7 @@ sizeOf.TABLE = function(table) {
 };
 
 encode.RECORD = encode.TABLE;
+encodeAB.RECORD = encodeAB.TABLE;
 sizeOf.RECORD = sizeOf.TABLE;
 
 // Merge in a list of bytes.
@@ -1013,4 +1067,4 @@ sizeOf.LITERAL = function(v) {
     return v.length;
 };
 
-export { decode, encode, sizeOf };
+export { decode, encode, encodeAB, sizeOf };

@@ -243,7 +243,7 @@ function makeCmapTable(glyphs) {
         const glyph = glyphs.get(i);
         for (let j = 0; j < glyph.unicodes.length; j += 1) {
             addSegment(segments, glyph.unicodes[j], i);
-            if (glyph.unicodes[j] > 0xFFFF) {
+            if (isPlan0Only && glyph.unicodes[j] > 0xFFFF) {
                 console.log('Adding CMAP format 12 (needed!)');
                 isPlan0Only = false;
             }
@@ -260,6 +260,9 @@ function makeCmapTable(glyphs) {
             }
         }
     }
+    // Format 12 subtable is effectively required for large fonts and is
+    // redundant but small enough for other fonts.
+    if (!ranges.length && glyphs.length > 1000) isPlan0Only = false;
 
     let nextOffset = 12 + (isPlan0Only ? 0 : 8) + (hasVS ? 8 : 0) + (ranges.length ? 8 : 0);
     let cmapTable = [
@@ -279,7 +282,7 @@ function makeCmapTable(glyphs) {
             {name: 'cmap12EncodingID', type: 'USHORT', value: 10},
             {name: 'cmap12Offset', type: 'ULONG', value: 0}
         ]);
-    
+
     if (ranges.length)
         cmapTable = cmapTable.concat([
             {name: 'cmap13PlatformID', type: 'USHORT', value: 3},
@@ -307,7 +310,7 @@ function makeCmapTable(glyphs) {
 
     const t = new table.Table('cmap', cmapTable);
 
-    t.segments = segments.sort(function (a,b) {
+    t.segments = segments.sort(function (a, b) {
         return a.start - b.start;
     });
     addTerminatorSegment(t);
@@ -322,6 +325,8 @@ function makeCmapTable(glyphs) {
     let idDeltas = [];
     let idRangeOffsets = [];
     let glyphIds = [];
+    let cmap4Length = 16; // Subtable header + reservedPad
+    let cmap4IsFull = false;
 
     // CMAP 12
     let cmap12Groups = [];
@@ -334,14 +339,18 @@ function makeCmapTable(glyphs) {
         const segment = t.segments[i];
 
         // CMAP 4
-        if (segment.end <= 65535 && segment.start <= 65535) {
+        if (segment.end <= 65535 && segment.start <= 65535 &&
+            (!cmap4IsFull || segment.glyphIndex === undefined)) {
             endCounts = endCounts.concat({name: 'end_' + i, type: 'USHORT', value: segment.end});
             startCounts = startCounts.concat({name: 'start_' + i, type: 'USHORT', value: segment.start});
             idDeltas = idDeltas.concat({name: 'idDelta_' + i, type: 'SHORT', value: segment.delta});
             idRangeOffsets = idRangeOffsets.concat({name: 'idRangeOffset_' + i, type: 'USHORT', value: segment.offset});
+            cmap4Length += 4 * 2;
             if (segment.glyphId !== undefined) {
                 glyphIds = glyphIds.concat({name: 'glyph_' + i, type: 'USHORT', value: segment.glyphId});
+                cmap4Length += 2;
             }
+            cmap4IsFull = cmap4Length + 5 * 2 * 2 > 2**16 - 1;
         } else {
             // Skip Unicode > 65535 (16bit unsigned max) for CMAP 4, will be added in CMAP 12
             segCountToRemove += 1;
@@ -350,9 +359,12 @@ function makeCmapTable(glyphs) {
         // CMAP 12
         // Skip Terminator Segment
         if (!isPlan0Only && segment.glyphIndex !== undefined) {
-            cmap12Groups = cmap12Groups.concat({name: 'cmap12Start_' + i, type: 'ULONG', value: segment.start});
-            cmap12Groups = cmap12Groups.concat({name: 'cmap12End_' + i, type: 'ULONG', value: segment.end});
-            cmap12Groups = cmap12Groups.concat({name: 'cmap12Glyph_' + i, type: 'ULONG', value: segment.glyphIndex});
+            let v = new table.Record('cmap12 value', [
+                {name: 'start', type: 'ULONG', value: segment.start},
+                {name: 'end', type: 'ULONG', value: segment.end},
+                {name: 'glyph', type: 'ULONG', value: segment.glyphIndex},
+            ]);
+            cmap12Groups.push(v.encode());
         }
     }
 
@@ -369,19 +381,23 @@ function makeCmapTable(glyphs) {
     t.fields = t.fields.concat(idRangeOffsets);
     t.fields = t.fields.concat(glyphIds);
 
-    t.cmap4Length = 14 + // Subtable header
-        endCounts.length * 2 +
-        2 + // reservedPad
-        startCounts.length * 2 +
-        idDeltas.length * 2 +
-        idRangeOffsets.length * 2 +
-        glyphIds.length * 2;
-    nextOffset += t.cmap4Length;
+    if (cmap4Length > 2**16 - 1) throw new Error('Overflow of cmap4Length (' + cmap4Length + ')');
+    t.cmap4Length = cmap4Length;
+    nextOffset += cmap4Length;
 
     if (!isPlan0Only) {
         // CMAP 12 Subtable
-        const cmap12Length = 16 + // Subtable header
-            cmap12Groups.length * 4;
+        const cmap12MainLength = cmap12Groups.length * 3 * 4;
+        const cmap12Length = 16 + cmap12MainLength;
+
+        const ab = new ArrayBuffer(cmap12MainLength);
+        const a8 = new Uint8Array(ab);
+        let x = 0;
+        for (let i = 0; i < cmap12Groups.length; i++) {
+            for (let j = 0; j < cmap12Groups[i].length; j++) {
+                a8[x++] = cmap12Groups[i][j];
+            }
+        }
 
         t.cmap12Offset = nextOffset;
         t.fields = t.fields.concat([
@@ -389,10 +405,10 @@ function makeCmapTable(glyphs) {
             {name: 'cmap12Reserved', type: 'USHORT', value: 0},
             {name: 'cmap12Length', type: 'ULONG', value: cmap12Length},
             {name: 'cmap12Language', type: 'ULONG', value: 0},
-            {name: 'cmap12nGroups', type: 'ULONG', value: cmap12Groups.length / 3}
+            {name: 'cmap12nGroups', type: 'ULONG', value: cmap12Groups.length},
+            {name: 'cmap12Main', type: 'LITERAL', value: a8}
         ]);
 
-        t.fields = t.fields.concat(cmap12Groups);
         nextOffset += cmap12Length;
     }
 
@@ -424,7 +440,7 @@ function makeCmapTable(glyphs) {
 
     if (hasVS) {
         // CMAP 14 Subtable
-        let cmap14Length = 2+4+4; // Subtable header
+        let cmap14Length = 2 + 4 + 4; // Subtable header
 
         t.fields = t.fields.concat([
             {name: 'cmap14Format', type: 'USHORT', value: 14},
@@ -441,7 +457,7 @@ function makeCmapTable(glyphs) {
             return a - b;
         }).forEach(function (unicode2) {
             let uvsOffset = {name: 'cmap14NonDefaultUVSOffset_' + j, type: 'ULONG', value: uvsNextRecordOffset};
-            uvsOffsetFields.push (uvsOffset);
+            uvsOffsetFields.push(uvsOffset);
             t.fields = t.fields.concat([
                 {name: 'cmap14VarSelector_' + j, type: 'UINT24', value: parseInt(unicode2)},
                 {name: 'cmap14DefaultUVSOffset_' + j, type: 'ULONG', value: 0},
@@ -460,16 +476,16 @@ function makeCmapTable(glyphs) {
                     {name: 'cmap14GlyphID_' + j + '_' + k, type: 'USHORT', value: vsMappings[unicode2][unicode1]},
                 );
                 k++;
-                uvsNextRecordOffset += 3+2;
+                uvsNextRecordOffset += 3 + 2;
             });
             uvsMappings[0].value = k;
-            nonDefaultUVSRecords = nonDefaultUVSRecords.concat (uvsMappings);
+            nonDefaultUVSRecords = nonDefaultUVSRecords.concat(uvsMappings);
             j++;
         });
         t.cmap14NumVarSelectorRecords = j;
-        cmap14Length += (3+4+4)*j;
+        cmap14Length += (3 + 4 + 4) * j;
         t.cmap14Length = cmap14Length + uvsNextRecordOffset;
-        
+
         t.fields = t.fields.concat(nonDefaultUVSRecords);
         uvsOffsetFields.forEach(function (field) {
             field.value += cmap14Length;

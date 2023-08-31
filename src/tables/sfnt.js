@@ -27,17 +27,25 @@ function log2(v) {
 }
 
 function computeCheckSum(bytes) {
-    while (bytes.length % 4 !== 0) {
-        bytes.push(0);
+    let tail = [];
+    let byteLength = bytes.length;
+    while (byteLength % 4 !== 0) {
+        tail.push(bytes[byteLength - 1]);
+        byteLength--;
     }
 
     let sum = 0;
-    for (let i = 0; i < bytes.length; i += 4) {
+    for (let i = 0; i < byteLength; i += 4) {
         sum += (bytes[i] << 24) +
             (bytes[i + 1] << 16) +
             (bytes[i + 2] << 8) +
             (bytes[i + 3]);
     }
+
+    sum += ((tail[0] || 0) << 24) +
+           ((tail[1] || 0) << 16) +
+           ((tail[2] || 0) << 8) +
+           ((tail[3] || 0));
 
     sum %= Math.pow(2, 32);
     return sum;
@@ -80,7 +88,9 @@ function makeSfntTable(tables) {
         const t = tables[i];
         check.argument(t.tableName.length === 4, 'Table name' + t.tableName + ' is invalid.');
         const tableLength = t.sizeOf();
-        const tableRecord = makeTableRecord(t.tableName, computeCheckSum(t.encode()), offset, tableLength);
+        const ab = t.encodeIntoArrayBuffer();
+
+        const tableRecord = makeTableRecord(t.tableName, computeCheckSum(new Uint8Array(ab)), offset, tableLength);
         recordFields.push({name: tableRecord.tag + ' Table Record', type: 'RECORD', value: tableRecord});
         tableFields.push({name: t.tableName + ' table', type: 'RECORD', value: t});
         offset += tableLength;
@@ -323,8 +333,9 @@ function fontToSfntTable(font) {
     const sfntTable = makeSfntTable(tables);
 
     // Compute the font's checkSum and store it in head.checkSumAdjustment.
-    const bytes = sfntTable.encode();
-    const checkSum = computeCheckSum(bytes);
+    const ab = sfntTable.encodeIntoArrayBuffer();
+    const ab8 = new Uint8Array(ab);
+    const checkSum = computeCheckSum(ab8);
     const tableFields = sfntTable.fields;
     let checkSumAdjusted = false;
     for (let i = 0; i < tableFields.length; i += 1) {

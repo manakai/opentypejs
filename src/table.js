@@ -1,7 +1,7 @@
 // Table metadata
 
 import check from './check';
-import { encode, sizeOf } from './types';
+import { encode, encodeAB, sizeOf } from './types';
 
 /**
  * @exports opentype.Table
@@ -42,6 +42,10 @@ function Table(tableName, fields, options) {
  */
 Table.prototype.encode = function() {
     return encode.TABLE(this);
+};
+
+Table.prototype.encodeIntoArrayBuffer = function() {
+    return encodeAB.TABLE(this);
 };
 
 /**

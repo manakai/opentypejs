@@ -8,6 +8,7 @@ import glyphset from '../glyphset';
 import parse from '../parse';
 import Path from '../path';
 import table from '../table';
+import { encode } from '../types';
 
 // Custom equals function that can also check lists.
 function equals(a, b) {
@@ -1222,18 +1223,70 @@ function glyphToOps(glyph) {
     return ops;
 }
 
+function makeINDEXHeader(offsets, offset) {
+
+    if (offsets.length === 1) {
+        return [0, 0];
+    }
+
+    const encodedOffsets = [];
+    const offSize = (1 + Math.floor(Math.log(offset) / Math.log(2)) / 8) | 0;
+    const offsetEncoder = [undefined, encode.BYTE, encode.USHORT, encode.UINT24, encode.ULONG][offSize];
+    for (let i = 0; i < offsets.length; i += 1) {
+        const encodedOffset = offsetEncoder(offsets[i]);
+        Array.prototype.push.apply(encodedOffsets, encodedOffset);
+    }
+
+    return Array.prototype.concat(encode.Card16(offsets.length - 1),
+                                  encode.OffSize(offSize),
+                                  encodedOffsets);
+}
+
 function makeCharStringsIndex(glyphs) {
-    const t = new table.Record('CharStrings INDEX', [
-        {name: 'charStrings', type: 'INDEX', value: []}
-    ]);
+    let offset = 1; // First offset is always 1.
+    const offsets = [offset];
+    let data = [];
+    const literals = [];
+    const moveToLiteral = () => {
+        const ab = new ArrayBuffer(offset - 1);
+        const b8 = new Uint8Array(ab);
+        let x = 0;
+        for (let i = 0; i < data.length; i++) {
+            for (let j = 0; j < data[i].length; j++) {
+                b8[x++] = data[i][j];
+            }
+        }
+        literals.push(b8);
+        data = [];
+    };
 
     for (let i = 0; i < glyphs.length; i += 1) {
         const glyph = glyphs.get(i);
         const ops = glyphToOps(glyph);
-        t.charStrings.push({name: glyph.name, type: 'CHARSTRING', value: ops});
-    }
 
-    return t;
+        let d = [];
+        const length = ops.length;
+        for (let j = 0; j < length; j += 1) {
+            const op = ops[j];
+            const enc1 = encode[op.type](op.value);
+            for (let k = 0; k < enc1.length; k++) {
+                d.push(enc1[k]);
+            }
+        }
+        data.push(d);
+        offset += d.length;
+        offsets.push(offset);
+
+        if (data.length > 10000) moveToLiteral();
+    }
+    moveToLiteral();
+
+    const v = makeINDEXHeader(offsets, offset);
+    let css = new table.Record('CharString value', [
+        {name: 'charStrings header', type: 'LITERAL', value: v},
+        ...literals.map(_ => ({name: 'charStrings data', type: 'LITERAL', value: _})),
+    ]);
+    return css;
 }
 
 function makePrivateDict(attrs, strings) {
