@@ -233,7 +233,7 @@ function parseBuffer(buffer, opt) {
     for (let i = 0; i < numTables; i += 1) {
         const tableEntry = tableEntries[i];
         let table;
-        font.tableTags.push (tableEntry.tag);
+        font.tableTags.push(tableEntry.tag);
         switch (tableEntry.tag) {
             case 'cmap':
                 table = uncompressTable(data, tableEntry);

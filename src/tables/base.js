@@ -53,9 +53,9 @@ function parseBASETable(data, start) {
         });
     });
 
-    if (base.version >= 1.1) {
-        //XXX base.itemVarStoreOffset = p.parseOffset32();
-    }
+    //if (base.version >= 1.1) {
+    //    //XXX base.itemVarStoreOffset = p.parseOffset32();
+    //}
 
     return base;
 }

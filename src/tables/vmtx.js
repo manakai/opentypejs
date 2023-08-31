@@ -24,8 +24,8 @@ function parseVmtxTableAll(data, start, numMetrics, numGlyphs, glyphs) {
 function parseVmtxTableOnLowMemory(font, data, start, numMetrics, numGlyphs) {
     font._vmtxTableData = {};
 
-    let advanceWidth;
-    let leftSideBearing;
+    let advanceHeight;
+    let topSideBearing;
     const p = new parse.Parser(data, start);
     for (let i = 0; i < numGlyphs; i += 1) {
         // If the font is monospaced, only one entry is needed. This last entry applies to all subsequent glyphs.

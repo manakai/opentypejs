@@ -661,7 +661,7 @@ function parseNameTable(data, start, ltag) {
                 translations[language] = text;
             }
 
-            name.records.push ({
+            name.records.push({
                 platformID,
                 encodingID,
                 languageID,

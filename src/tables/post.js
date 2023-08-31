@@ -79,7 +79,7 @@ function parsePostTable(data, start, numGlyphs) {
                     post.glyphIDToName[i] = name;
                 }
             }
-      
+
             break;
     }
     return post;

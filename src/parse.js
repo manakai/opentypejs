@@ -627,8 +627,6 @@ Parser.prototype.parseFeatureVariationsList = function() {
     }) || [];
 };
 
-
-
 Parser.prototype.parseMinMax = function() {
     return this.parsePointer(function() {
         let record = {};
@@ -661,9 +659,9 @@ Parser.prototype.parseBaseCoord = function() {
             coord.baseCoordPoint = this.parseUShort();
         }
 
-        if (coord.baseCoordFormat >= 3) {
-            //XXX coord.device = ...;
-        }
+        //if (coord.baseCoordFormat >= 3) {
+        //    //XXX coord.device = ...;
+        //}
 
         return coord;
     });
@@ -679,11 +677,11 @@ Parser.prototype.parseAnchor = function() {
 
         if (anchor.anchorFormat === 2) {
             anchor.anchorPoint = this.parseUShort();
-        } else if (anchor.anchorFormat === 3) {
-            // XXX
-            //anchor.xDeviceOffset
-            //anchor.yDeviceOffset
-        }
+        } //else if (anchor.anchorFormat === 3) {
+        //    // XXX
+        //    //anchor.xDeviceOffset
+        //    //anchor.yDeviceOffset
+        //}
 
         return anchor;
     });
