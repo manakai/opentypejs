@@ -1,10 +1,9 @@
 {
   "github": {
     "build": [
-      "make build"
     ],
     "tests": [
-      "make test"
+      "make gha-test"
     ],
     "merger": true
   }

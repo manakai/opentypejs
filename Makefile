@@ -8,7 +8,11 @@ updatenightly:
 build:
 	docker run -i -v `pwd`:/app node sh -c 'cd /app && npm run build'
 
-test: build always
+test: build test-main
+
+gha-test: test-main
+
+test-main: always
 	docker run -i -v `pwd`:/app node sh -c 'cd /app && npm run test'
 
 always:

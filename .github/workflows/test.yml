@@ -98,10 +98,7 @@
                "run" : "mkdir -p $CIRCLE_ARTIFACTS"
             },
             {
-               "run" : "make build"
-            },
-            {
-               "run" : "make test"
+               "run" : "make gha-test"
             },
             {
                "uses" : "actions/upload-artifact@v3",
