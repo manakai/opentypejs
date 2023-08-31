@@ -46,7 +46,9 @@ function makeNameTable(names) {
 }
 
 function parseNameTable(names, ltag) {
-    return _name.parse(makeNameTable(names), 0, ltag);
+    const parsed = _name.parse(makeNameTable(names), 0, ltag);
+    delete parsed.records;
+    return parsed;
 }
 
 function getNameRecords(names) {
@@ -124,7 +126,8 @@ describe('tables/name.js', function() {
             },
             44444: {
                 en: 'Lipstick 💄'
-            }
+            },
+            tableVersion: 0
         });
     });
 
@@ -143,14 +146,15 @@ describe('tables/name.js', function() {
             },
             999: {
                 und: 'Walrus-Thin'
-            }
+            },
+            tableVersion: 0
         });
     });
 
     it('ignores name records for unknown platforms', function() {
         assert.deepEqual(parseNameTable([
             [1, '01 02', 666, 1, 1]
-        ]), {});
+        ]), {tableVersion: 0});
     });
 
     it('can make a naming table', function() {

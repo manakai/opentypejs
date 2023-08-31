@@ -19,7 +19,11 @@ describe('tables/meta.js', function() {
     it('can parse meta table', function() {
         const obj = {
             dlng: 'Latn,Grek,Cyrl',
-            slng: 'Latn,Grek,Cyrl'
+            slng: 'Latn,Grek,Cyrl',
+            _table: {
+                flags: 0,
+                version: 1
+            }
         };
         assert.deepEqual(obj, meta.parse(unhex(data), 0));
     });
