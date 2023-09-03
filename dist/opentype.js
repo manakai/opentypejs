@@ -5520,6 +5520,22 @@
 	                                  encodedOffsets);
 	}
 
+	function makeCharString(glyph) {
+	    var ops = glyphToOps(glyph);
+	    var length = ops.length;
+	    var d = [];
+	    for (var j = 0; j < length; j += 1) {
+	        var op = ops[j];
+	        var enc1 = encode[op.type](op.value);
+	        for (var k = 0; k < enc1.length; k++) {
+	            d.push(enc1[k]);
+	        }
+	    }
+	    return d;
+	}
+
+	Glyph._makeCharString = makeCharString;
+
 	function makeCharStringsIndex(glyphs) {
 	    var offset = 1; // First offset is always 1.
 	    var offsets = [offset];
@@ -5541,18 +5557,7 @@
 	    };
 
 	    for (var i = 0; i < glyphs.length; i += 1) {
-	        var glyph = glyphs.get(i);
-	        var ops = glyphToOps(glyph);
-	        var length = ops.length;
-	        var d = [];
-	        for (var j = 0; j < length; j += 1) {
-	            var op = ops[j];
-	            var enc1 = encode[op.type](op.value);
-	            for (var k = 0; k < enc1.length; k++) {
-	                d.push(enc1[k]);
-	            }
-	        }
-
+	        var d = makeCharString(glyphs.get(i));
 	        data.push(d);
 	        offset += d.length;
 	        offsets.push(offset);

@@ -5,6 +5,7 @@
 
 import { CffEncoding, cffStandardEncoding, cffExpertEncoding, cffStandardStrings } from '../encoding';
 import glyphset from '../glyphset';
+import glyph from '../glyph';
 import parse from '../parse';
 import Path from '../path';
 import table from '../table';
@@ -1242,6 +1243,22 @@ function makeINDEXHeader(offsets, offset) {
                                   encodedOffsets);
 }
 
+function makeCharString(glyph) {
+    const ops = glyphToOps(glyph);
+    const length = ops.length;
+    const d = [];
+    for (let j = 0; j < length; j += 1) {
+        const op = ops[j];
+        const enc1 = encode[op.type](op.value);
+        for (let k = 0; k < enc1.length; k++) {
+            d.push(enc1[k]);
+        }
+    }
+    return d;
+}
+
+glyph._makeCharString = makeCharString;
+
 function makeCharStringsIndex(glyphs) {
     let offset = 1; // First offset is always 1.
     const offsets = [offset];
@@ -1263,18 +1280,7 @@ function makeCharStringsIndex(glyphs) {
     };
 
     for (let i = 0; i < glyphs.length; i += 1) {
-        const glyph = glyphs.get(i);
-        const ops = glyphToOps(glyph);
-        const length = ops.length;
-        const d = [];
-        for (let j = 0; j < length; j += 1) {
-            const op = ops[j];
-            const enc1 = encode[op.type](op.value);
-            for (let k = 0; k < enc1.length; k++) {
-                d.push(enc1[k]);
-            }
-        }
-
+        const d = makeCharString(glyphs.get(i));
         data.push(d);
         offset += d.length;
         offsets.push(offset);
