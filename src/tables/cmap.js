@@ -107,11 +107,11 @@ function parseCmapTableFormat14(p, subtable) {
 
     let groupCount;
     subtable.numVarSelectorRecords = groupCount = p.parseULong();
-    subtable.varGlyphIndexMap = [];
+    subtable.varGlyphIndexMap = {};
 
     for (let i = 0; i < groupCount; i += 1) {
         const varSelector = p.parseUint24();
-        const indexMap = [];
+        const indexMap = {};
         subtable.varGlyphIndexMap[varSelector] = indexMap;
 
         const defaultUVSOffset = p.parseOffset32();

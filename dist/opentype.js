@@ -3015,11 +3015,11 @@
 
 	    var groupCount;
 	    subtable.numVarSelectorRecords = groupCount = p.parseULong();
-	    subtable.varGlyphIndexMap = [];
+	    subtable.varGlyphIndexMap = {};
 
 	    for (var i = 0; i < groupCount; i += 1) {
 	        var varSelector = p.parseUint24();
-	        var indexMap = [];
+	      var indexMap = {};
 	        subtable.varGlyphIndexMap[varSelector] = indexMap;
 
 	        var defaultUVSOffset = p.parseOffset32();
