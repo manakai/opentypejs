@@ -36,7 +36,7 @@ function parsePostTable(data, start, numGlyphs) {
             post.names = [];
             let nameIndexToName = standardNames.slice();
             delete nameIndexToName[0];
-            for (let i = 258; i < maxNameIndex; i++) {
+            for (let i = 258; i <= maxNameIndex; i++) {
                 const nameLength = p.parseChar();
                 const name = p.parseString(nameLength);
                 post.names.push(name);
