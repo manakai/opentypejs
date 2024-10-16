@@ -18,6 +18,7 @@ import _name from './name';
 import os2 from './os2';
 import post from './post';
 import gsub from './gsub';
+import gpos from './gpos';
 import meta from './meta';
 import colr from './colr';
 import cpal from './cpal';
