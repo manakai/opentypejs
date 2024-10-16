@@ -42,6 +42,7 @@ describe('tables/gpos.js', function() {
                 format: 2,
                 ranges: [{ start: 0x1b3, end: 0x1bc, index: 0 }]
             },
+            valueFormat: 2,
             value: { yPlacement: -80 }
         });
     });
@@ -55,6 +56,7 @@ describe('tables/gpos.js', function() {
                 format: 2,
                 ranges: [{ start: 0xc8, end: 0xd1, index: 0 }]
             },
+            valueFormat: 153,
             value: {
                 xPlacement: 80,             // 0x50
                 yAdvance: 210,              // 0xd2

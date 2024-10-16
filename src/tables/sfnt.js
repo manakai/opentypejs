@@ -320,6 +320,9 @@ function fontToSfntTable(font) {
     if (font.tables.gsub) {
         tables.push(gsub.make(font.tables.gsub));
     }
+    if (font.tables.gpos) {
+        tables.push(gpos.make(font.tables.gpos));
+    }
     if (font.tables.cpal) {
         tables.push(cpal.make(font.tables.cpal));
     }

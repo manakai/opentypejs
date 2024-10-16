@@ -13,10 +13,13 @@ subtableParsers[1] = function parseLookup1() {
     const start = this.offset + this.relativeOffset;
     const posformat = this.parseUShort();
     if (posformat === 1) {
+        var coverage = this.parsePointer(Parser.coverage);
+        var valueFormat = this.parseUShort();
         return {
             posFormat: 1,
-            coverage: this.parsePointer(Parser.coverage),
-            value: this.parseValueRecord()
+            coverage,
+            valueFormat,
+            value: this.parseValueRecord(valueFormat)
         };
     } else if (posformat === 2) {
         return {
@@ -304,6 +307,84 @@ function parseGposTable(data, start) {
 // GPOS Writing //////////////////////////////////////////////
 // NOT SUPPORTED
 const subtableMakers = new Array(10);
+
+subtableMakers[1] = function makeLookup1(subtable) {
+    check.assert(subtable.posFormat === 1, 'Lookup type 1 posFormat must be 1.');
+    var tbl = [
+        {name: 'posFormat', type: 'USHORT', value: 1},
+        {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)},
+        {name: 'valueFormat', type: 'USHORT', value: subtable.valueFormat},
+    ];
+    if (subtable.valueFormat & 0x0001) {
+        tbl.push({name: 'xPlacement', type: 'SHORT', value: subtable.value.xPlacement});
+    }
+    if (subtable.valueFormat & 0x0002) {
+        tbl.push({name: 'yPlacement', type: 'SHORT', value: subtable.value.yPlacement});
+    }
+    if (subtable.valueFormat & 0x0004) {
+        tbl.push({name: 'xAdvance', type: 'SHORT', value: subtable.value.xAdvance});
+    }
+    if (subtable.valueFormat & 0x0008) {
+        tbl.push({name: 'yAdvance', type: 'SHORT', value: subtable.value.yAdvance});
+    }
+    return new table.Table('posTable', tbl);
+};
+
+subtableMakers[8] = function makeLookup8(subtable) {
+    if (subtable.posFormat === 1) {
+        let returnTable = new table.Table('chainContextTable', [
+            {name: 'posFormat', type: 'USHORT', value: subtable.posFormat},
+            {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)}
+        ].concat(table.tableList('chainRuleSet', subtable.chainRuleSets, function(chainRuleSet) {
+            return new table.Table('chainRuleSetTable', table.tableList('chainRule', chainRuleSet, function(chainRule) {
+                let tableData = table.ushortList('backtrackGlyph', chainRule.backtrack, chainRule.backtrack.length)
+                    .concat(table.ushortList('inputGlyph', chainRule.input, chainRule.input.length + 1))
+                    .concat(table.ushortList('lookaheadGlyph', chainRule.lookahead, chainRule.lookahead.length))
+                    .concat(table.ushortList('substitution', [], chainRule.lookupRecords.length));
+
+                chainRule.lookupRecords.forEach((record, i) => {
+                    tableData = tableData
+                        .concat({name: 'sequenceIndex' + i, type: 'USHORT', value: record.sequenceIndex})
+                        .concat({name: 'lookupListIndex' + i, type: 'USHORT', value: record.lookupListIndex});
+                });
+                return new table.Table('chainRuleTable', tableData);
+            }));
+        })));
+        return returnTable;
+    } else if (subtable.posFormat === 2) {
+        check.assert(false, 'lookup type 8 format 2 is not yet supported.');
+    } else if (subtable.posFormat === 3) {
+        let tableData = [
+            {name: 'posFormat', type: 'USHORT', value: subtable.posFormat},
+        ];
+
+        tableData.push({name: 'backtrackGlyphCount', type: 'USHORT', value: subtable.backtrackCoverage.length});
+        subtable.backtrackCoverage.forEach((coverage, i) => {
+            tableData.push({name: 'backtrackCoverage' + i, type: 'TABLE', value: new table.Coverage(coverage)});
+        });
+        tableData.push({name: 'inputGlyphCount', type: 'USHORT', value: subtable.inputCoverage.length});
+        subtable.inputCoverage.forEach((coverage, i) => {
+            tableData.push({name: 'inputCoverage' + i, type: 'TABLE', value: new table.Coverage(coverage)});
+        });
+        tableData.push({name: 'lookaheadGlyphCount', type: 'USHORT', value: subtable.lookaheadCoverage.length});
+        subtable.lookaheadCoverage.forEach((coverage, i) => {
+            tableData.push({name: 'lookaheadCoverage' + i, type: 'TABLE', value: new table.Coverage(coverage)});
+        });
+
+        tableData.push({name: 'substitutionCount', type: 'USHORT', value: subtable.lookupRecords.length});
+        subtable.lookupRecords.forEach((record, i) => {
+            tableData = tableData
+                .concat({name: 'sequenceIndex' + i, type: 'USHORT', value: record.sequenceIndex})
+                .concat({name: 'lookupListIndex' + i, type: 'USHORT', value: record.lookupListIndex});
+        });
+
+        let returnTable = new table.Table('chainContextTable', tableData);
+
+        return returnTable;
+    }
+
+    check.assert(false, 'lookup type 8 format must be 1, 2 or 3.');
+};
 
 function makeGposTable(gpos) {
     return new table.Table('GPOS', [
