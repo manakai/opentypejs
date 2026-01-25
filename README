@@ -26,3 +26,15 @@ repository, for more information on the original version.
     glyph /glyph/ by the |addUnicodeRange| method:
 
       glyph.addUnicodeRange (0x4E00, 0x9FFF);
+
+  - Added suport for generation of custom |cmap| subtable by
+    specifying ArrayBuffer objects.  Usage:
+
+      const font = new opentype.Font ({
+        ...args,
+        tables: {
+          cmap: {
+            arrayBufferList: [ab1, ab2, ab3, ...],
+          },
+        },
+      });
