@@ -953,6 +953,11 @@ encode.TABLE = function(table) {
             subtableOffsets.push(d.length);
             d.push(...[0, 0]);
             subtables.push(bytes);
+        } else if (field.type === 'ARRAYBUFFERLIST') {
+            var offsets = [];
+            subtableOffsets.push(offsets);
+            const bytes = encodingFunction(value);
+            subtables.push(bytes);
         } else {
             for (let j = 0; j < bytes.length; j++) {
                 d.push(bytes[j]);
@@ -1000,6 +1005,11 @@ encodeAB.TABLE = function(table) {
         if (field.type === 'TABLE') {
             subtableOffsets.push(nextOffset);
             put([0, 0]);
+            const ab = encodingABFunction(value);
+            subtables.push(ab);
+        } else if (field.type === 'ARRAYBUFFERLIST') {
+            var offsets = [];
+            subtableOffsets.push(offsets);
             const ab = encodingABFunction(value);
             subtables.push(ab);
         } else {
@@ -1065,6 +1075,30 @@ encode.LITERAL = function(v) {
 
 sizeOf.LITERAL = function(v) {
     return v.length;
+};
+
+encode.ARRAYBUFFERLIST = function(v) {
+    throw new Error ("Not supported");
+};
+encodeAB.ARRAYBUFFERLIST = function(v) {
+    var s = sizeOf.ARRAYBUFFERLIST(v);
+    var ab = new ArrayBuffer(s);
+    var ab8 = new Uint8Array(ab);
+    var o = 0;
+    for (var i = 0; i < v.length; i += 1) {
+        ab8.set(new Uint8Array (v[i]), o);
+        o += v[i].byteLength;
+    }
+    return ab;
+};
+
+sizeOf.ARRAYBUFFERLIST = function(v) {
+    var s = 0;
+    for (var i = 0; i < v.length; i += 1) {
+        var w = v[i];
+        s += w.byteLength;
+    }
+    return s;
 };
 
 export { decode, encode, encodeAB, sizeOf };

@@ -264,7 +264,6 @@ function fontToSfntTable(font) {
     }, font.tables.os2));
 
     const hmtxTable = hmtx.make(font.glyphs);
-    const cmapTable = cmap.make(font.glyphs);
 
     const englishFamilyName = font.getEnglishName('fontFamily');
     const englishStyleName = font.getEnglishName('fontSubfamily');
@@ -313,7 +312,14 @@ function fontToSfntTable(font) {
     const metaTable = (font.metas && Object.keys(font.metas).length > 0) ? meta.make(font.metas) : undefined;
 
     // The order does not matter because makeSfntTable() will sort them.
-    const tables = [headTable, hheaTable, maxpTable, os2Table, nameTable, cmapTable, postTable, cffTable, hmtxTable];
+    const tables = [headTable, hheaTable, maxpTable, os2Table, nameTable, postTable, cffTable, hmtxTable];
+    if (font.tables.cmap.arrayBufferList) {
+        tables.push(new table.Table('cmap', [
+            {name: 'all', type: 'ARRAYBUFFERLIST', value: font.tables.cmap.arrayBufferList},
+        ]));
+    } else {
+        tables.push(cmap.make(font.glyphs));
+    }
     if (ltagTable) {
         tables.push(ltagTable);
     }
