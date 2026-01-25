@@ -1078,7 +1078,7 @@ sizeOf.LITERAL = function(v) {
 };
 
 encode.ARRAYBUFFERLIST = function(v) {
-    throw new Error("Not supported");
+    throw new Error('Not supported');
 };
 encodeAB.ARRAYBUFFERLIST = function(v) {
     var s = sizeOf.ARRAYBUFFERLIST(v);
