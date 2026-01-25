@@ -8296,7 +8296,7 @@
 
 	    // The order does not matter because makeSfntTable() will sort them.
 	    var tables = [headTable, hheaTable, maxpTable, os2Table, nameTable, postTable, cffTable, hmtxTable];
-	    if (font.tables.cmap.arrayBufferList) {
+	    if (font.tables && font.tables.cmap && font.tables.cmap.arrayBufferList) {
 	        tables.push(new table.Table('cmap', [
 	            {name: 'all', type: 'ARRAYBUFFERLIST', value: font.tables.cmap.arrayBufferList} ]));
 	    } else {
