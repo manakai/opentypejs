@@ -1078,7 +1078,7 @@ sizeOf.LITERAL = function(v) {
 };
 
 encode.ARRAYBUFFERLIST = function(v) {
-    throw new Error ("Not supported");
+    throw new Error("Not supported");
 };
 encodeAB.ARRAYBUFFERLIST = function(v) {
     var s = sizeOf.ARRAYBUFFERLIST(v);
@@ -1086,7 +1086,7 @@ encodeAB.ARRAYBUFFERLIST = function(v) {
     var ab8 = new Uint8Array(ab);
     var o = 0;
     for (var i = 0; i < v.length; i += 1) {
-        ab8.set(new Uint8Array (v[i]), o);
+        ab8.set(new Uint8Array(v[i]), o);
         o += v[i].byteLength;
     }
     return ab;
