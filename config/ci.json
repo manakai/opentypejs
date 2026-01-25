@@ -5,6 +5,7 @@
     "tests": [
       "make gha-test"
     ],
-    "merger": true
+    "merger": true,
+    "gaa": true
   }
 }
