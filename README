@@ -27,8 +27,9 @@ repository, for more information on the original version.
 
       glyph.addUnicodeRange (0x4E00, 0x9FFF);
 
-  - Added suport for generation of custom |cmap| subtable by
-    specifying ArrayBuffer objects.  Usage:
+  - Added suport for generation of custom |cmap|, |COLR|, |CPAL|,
+    |GDEF|, |GPOS|, |GSUB|, and/or |name| subtables by specifying
+    ArrayBuffer objects.  Usage:
 
       const font = new opentype.Font ({
         ...args,
