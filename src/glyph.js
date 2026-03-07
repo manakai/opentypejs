@@ -89,8 +89,16 @@ Glyph.prototype.bindConstructorValues = function(options) {
         this.advanceWidth = options.advanceWidth;
     }
 
+    if ('advanceHeight' in options) {
+        this.advanceHeight = options.advanceHeight;
+    }
+
     if ('leftSideBearing' in options) {
         this.leftSideBearing = options.leftSideBearing;
+    }
+
+    if ('topSideBearing' in options) {
+        this.topSideBearing = options.topSideBearing;
     }
 
     // The path for a glyph is the most memory intensive, and is bound as a value
@@ -255,7 +263,8 @@ Glyph.prototype.getMetrics = function() {
         yMin: Math.min.apply(null, yCoords),
         xMax: Math.max.apply(null, xCoords),
         yMax: Math.max.apply(null, yCoords),
-        leftSideBearing: this.leftSideBearing
+        leftSideBearing: this.leftSideBearing,
+        topSideBearing: this.topSideBearing
     };
 
     if (!isFinite(metrics.xMin)) {
@@ -275,6 +284,7 @@ Glyph.prototype.getMetrics = function() {
     }
 
     metrics.rightSideBearing = this.advanceWidth - metrics.leftSideBearing - (metrics.xMax - metrics.xMin);
+    metrics.bottomSideBearing = this.advanceHeight - metrics.topSideBearing - (metrics.yMax - metrics.yMin);
     return metrics;
 };
 

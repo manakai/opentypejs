@@ -3959,8 +3959,16 @@ Glyph.prototype.bindConstructorValues = function(options) {
         this.advanceWidth = options.advanceWidth;
     }
 
+    if ('advanceHeight' in options) {
+        this.advanceHeight = options.advanceHeight;
+    }
+
     if ('leftSideBearing' in options) {
         this.leftSideBearing = options.leftSideBearing;
+    }
+
+    if ('topSideBearing' in options) {
+        this.topSideBearing = options.topSideBearing;
     }
 
     // The path for a glyph is the most memory intensive, and is bound as a value
@@ -4125,7 +4133,8 @@ Glyph.prototype.getMetrics = function() {
         yMin: Math.min.apply(null, yCoords),
         xMax: Math.max.apply(null, xCoords),
         yMax: Math.max.apply(null, yCoords),
-        leftSideBearing: this.leftSideBearing
+        leftSideBearing: this.leftSideBearing,
+        topSideBearing: this.topSideBearing
     };
 
     if (!isFinite(metrics.xMin)) {
@@ -4145,6 +4154,7 @@ Glyph.prototype.getMetrics = function() {
     }
 
     metrics.rightSideBearing = this.advanceWidth - metrics.leftSideBearing - (metrics.xMax - metrics.xMin);
+    metrics.bottomSideBearing = this.advanceHeight - metrics.topSideBearing - (metrics.yMax - metrics.yMin);
     return metrics;
 };
 
@@ -5889,6 +5899,53 @@ function makeHheaTable(options) {
 
 var hhea = { parse: parseHheaTable, make: makeHheaTable };
 
+// The `vhea` table contains information for vertical layout.
+
+// Parse the vertical header `vhea` table
+function parseVheaTable(data, start) {
+    var vhea = {};
+    var p = new parse.Parser(data, start);
+    vhea.version = p.parseVersion();
+    vhea.vertTypoAscender = p.parseShort();
+    vhea.vertTypoDescender = p.parseShort();
+    vhea.vertTypoLineGap = p.parseShort();
+    vhea.advanceHeightMax = p.parseUShort();
+    vhea.minTopSideBearing = p.parseShort();
+    vhea.minBottomSideBearing = p.parseShort();
+    vhea.yMaxExtent = p.parseShort();
+    vhea.caretSlopeRise = p.parseShort();
+    vhea.caretSlopeRun = p.parseShort();
+    vhea.caretOffset = p.parseShort();
+    p.relativeOffset += 8;
+    vhea.metricDataFormat = p.parseShort();
+    vhea.numberOfLongVerMetrics = p.parseUShort();
+    return vhea;
+}
+
+function makeVheaTable(options) {
+    return new table$1.Table('vhea', [
+        {name: 'version', type: 'FIXED', value: 0x00011000 /* 0x00010000 */},
+        {name: 'vertTypoAscender', type: 'FWORD', value: 0},
+        {name: 'vertTypoDescender', type: 'FWORD', value: 0},
+        {name: 'vertTypoLineGap', type: 'FWORD', value: 0},
+        {name: 'advanceHeightMax', type: 'UFWORD', value: 0},
+        {name: 'minTopSideBearing', type: 'FWORD', value: 0},
+        {name: 'minBottomSideBearing', type: 'FWORD', value: 0},
+        {name: 'yMaxExtent', type: 'FWORD', value: 0},
+        {name: 'caretSlopeRise', type: 'SHORT', value: 1},
+        {name: 'caretSlopeRun', type: 'SHORT', value: 0},
+        {name: 'caretOffset', type: 'SHORT', value: 0},
+        {name: 'reserved1', type: 'SHORT', value: 0},
+        {name: 'reserved2', type: 'SHORT', value: 0},
+        {name: 'reserved3', type: 'SHORT', value: 0},
+        {name: 'reserved4', type: 'SHORT', value: 0},
+        {name: 'metricDataFormat', type: 'SHORT', value: 0},
+        {name: 'numberOfLongVerMetrics', type: 'USHORT', value: 0}
+    ], options);
+}
+
+var vhea = { parse: parseVheaTable, make: makeVheaTable };
+
 // The `hmtx` table contains the horizontal metrics for all glyphs.
 
 function parseHmtxTableAll(data, start, numMetrics, numGlyphs, glyphs) {
@@ -5951,6 +6008,69 @@ function makeHmtxTable(glyphs) {
 }
 
 var hmtx = { parse: parseHmtxTable, make: makeHmtxTable };
+
+// The `vmtx` table contains the vertical metrics for all glyphs.
+
+function parseVmtxTableAll(data, start, numMetrics, numGlyphs, glyphs) {
+    var advanceHeight;
+    var topSideBearing;
+    var p = new parse.Parser(data, start);
+    for (var i = 0; i < numGlyphs; i += 1) {
+        // If the font is monospaced, only one entry is needed. This last entry applies to all subsequent glyphs.
+        if (i < numMetrics) {
+            advanceHeight = p.parseUShort();
+            topSideBearing = p.parseShort();
+        }
+
+        var glyph = glyphs.get(i);
+        glyph.advanceHeight = advanceHeight;
+        glyph.topSideBearing = topSideBearing;
+    }
+}
+
+function parseVmtxTableOnLowMemory(font, data, start, numMetrics, numGlyphs) {
+    font._vmtxTableData = {};
+
+    var advanceHeight;
+    var topSideBearing;
+    var p = new parse.Parser(data, start);
+    for (var i = 0; i < numGlyphs; i += 1) {
+        // If the font is monospaced, only one entry is needed. This last entry applies to all subsequent glyphs.
+        if (i < numMetrics) {
+            advanceHeight = p.parseUShort();
+            topSideBearing = p.parseShort();
+        }
+
+        font._vmtxTableData[i] = {
+            advanceHeight: advanceHeight,
+            topSideBearing: topSideBearing
+        };
+    }
+}
+
+// Parse the `vmtx` table, which contains the horizontal metrics for all glyphs.
+// This function augments the glyph array, adding the advanceWidth and leftSideBearing to each glyph.
+function parseVmtxTable(font, data, start, numMetrics, numGlyphs, glyphs, opt) {
+    if (opt.lowMemory)
+        { parseVmtxTableOnLowMemory(font, data, start, numMetrics, numGlyphs); }
+    else
+        { parseVmtxTableAll(data, start, numMetrics, numGlyphs, glyphs); }
+}
+
+function makeVmtxTable(glyphs) {
+    var t = new table$1.Table('vmtx', []);
+    for (var i = 0; i < glyphs.length; i += 1) {
+        var glyph = glyphs.get(i);
+        var advanceHeight = glyph.advanceHeight || 0;
+        var topSideBearing = glyph.topSideBearing || 0;
+        t.fields.push({name: 'advanceHeight_' + i, type: 'USHORT', value: advanceHeight});
+        t.fields.push({name: 'topSideBearing_' + i, type: 'SHORT', value: topSideBearing});
+    }
+
+    return t;
+}
+
+var vmtx = { parse: parseVmtxTable, make: makeVmtxTable };
 
 // The `ltag` table stores IETF BCP-47 language tags. It allows supporting
 
@@ -8350,8 +8470,11 @@ function fontToSfntTable(font) {
     var xMaxs = [];
     var yMaxs = [];
     var advanceWidths = [];
+    var advanceHeights = [];
     var leftSideBearings = [];
     var rightSideBearings = [];
+    var topSideBearings = [];
+    var bottomSideBearings = [];
     var firstCharIndex;
     var lastCharIndex = 0;
     var ulUnicodeRange1 = 0;
@@ -8359,11 +8482,16 @@ function fontToSfntTable(font) {
     var ulUnicodeRange3 = 0;
     var ulUnicodeRange4 = 0;
 
+    var defaultAdvanceHeight = font.unitsPerEm;
+
     for (var i = 0; i < font.glyphs.length; i += 1) {
         var glyph = font.glyphs.get(i);
 
         if (isNaN(glyph.advanceWidth)) {
             throw new Error('Glyph ' + glyph.name + ' (' + i + '): advanceWidth is not a number.');
+        }
+        if (isNaN(glyph.advanceHeight)) {
+            glyph.advanceHeight = defaultAdvanceHeight;
         }
 
         glyph.unicodes.filter(function (unicode) {
@@ -8401,7 +8529,10 @@ function fontToSfntTable(font) {
         yMaxs.push(metrics.yMax);
         leftSideBearings.push(metrics.leftSideBearing);
         rightSideBearings.push(metrics.rightSideBearing);
+        topSideBearings.push(metrics.topSideBearing);
+        bottomSideBearings.push(metrics.bottomSideBearing);
         advanceWidths.push(glyph.advanceWidth);
+        advanceHeights.push(glyph.advanceHeight);
     }
 
     var globals = {
@@ -8411,12 +8542,18 @@ function fontToSfntTable(font) {
         yMax: Math.max.apply(null, yMaxs),
         advanceWidthMax: Math.max.apply(null, advanceWidths),
         advanceWidthAvg: average(advanceWidths),
+        advanceHeightMax: Math.max.apply(null, advanceHeights),
         minLeftSideBearing: Math.min.apply(null, leftSideBearings),
         maxLeftSideBearing: Math.max.apply(null, leftSideBearings),
-        minRightSideBearing: Math.min.apply(null, rightSideBearings)
+        minRightSideBearing: Math.min.apply(null, rightSideBearings),
+        minTopSideBearing: Math.min.apply(null, topSideBearings),
+        maxTopSideBearing: Math.max.apply(null, topSideBearings),
+        minBottomSideBearing: Math.min.apply(null, bottomSideBearings)
     };
     globals.ascender = font.ascender;
     globals.descender = font.descender;
+    globals.vAscender = font.vertTypoAscender;
+    globals.vDescender = font.vertTypoDescender;
 
     var headTable = head.make({
         flags: 3, // 00000011 (baseline for font at y=0; left sidebearing point at x=0)
@@ -8437,6 +8574,16 @@ function fontToSfntTable(font) {
         minRightSideBearing: globals.minRightSideBearing,
         xMaxExtent: globals.maxLeftSideBearing + (globals.xMax - globals.xMin),
         numberOfHMetrics: font.glyphs.length
+    });
+
+    var vheaTable = vhea.make({
+        vertTypoAscender: globals.vAscender,
+        vertTypoDescender: globals.vDescender,
+        advanceHeightMax: globals.advanceHeightMax,
+        minTopSideBearing: globals.minTopSideBearing,
+        minBottomSideBearing: globals.minBottomSideBearing,
+        yMaxExtent: globals.maxTopSideBearing + (globals.yMax - globals.yMiin),
+        numberOfLongVerMetrics: font.glyphs.length
     });
 
     var maxpTable = maxp.make(font.glyphs.length);
@@ -8466,6 +8613,7 @@ function fontToSfntTable(font) {
     }, font.tables.os2));
 
     var hmtxTable = hmtx.make(font.glyphs);
+    var vmtxTable = vmtx.make(font.glyphs);
 
     var englishFamilyName = font.getEnglishName('fontFamily');
     var englishStyleName = font.getEnglishName('fontSubfamily');
@@ -8513,7 +8661,8 @@ function fontToSfntTable(font) {
     var metaTable = (font.metas && Object.keys(font.metas).length > 0) ? meta.make(font.metas) : undefined;
 
     // The order does not matter because makeSfntTable() will sort them.
-    var tables = [headTable, hheaTable, maxpTable, os2Table, postTable, cffTable, hmtxTable];
+    var tables = [headTable, hheaTable, vheaTable, os2Table, postTable,
+                    maxpTable, cffTable, hmtxTable, vmtxTable];
     if (font.tables && font.tables.name && font.tables.name.arrayBufferList) {
         tables.push(new table$1.Table('name', [
             {name: 'all', type: 'ARRAYBUFFERLIST', value: font.tables.name.arrayBufferList} ]));
@@ -15195,116 +15344,6 @@ function makeGDEFTable(gdef) {
 }
 
 var gdef$1 = { parse: parseGDEFTable, make: makeGDEFTable };
-
-// The `vhea` table contains information for vertical layout.
-
-// Parse the vertical header `vhea` table
-function parseVheaTable(data, start) {
-    var vhea = {};
-    var p = new parse.Parser(data, start);
-    vhea.version = p.parseVersion();
-    vhea.vertTypoAscender = p.parseShort();
-    vhea.vertTypoDescender = p.parseShort();
-    vhea.vertTypoLineGap = p.parseShort();
-    vhea.advanceHeightMax = p.parseUShort();
-    vhea.minTopSideBearing = p.parseShort();
-    vhea.minBottomSideBearing = p.parseShort();
-    vhea.yMaxExtent = p.parseShort();
-    vhea.caretSlopeRise = p.parseShort();
-    vhea.caretSlopeRun = p.parseShort();
-    vhea.caretOffset = p.parseShort();
-    p.relativeOffset += 8;
-    vhea.metricDataFormat = p.parseShort();
-    vhea.numberOfLongVerMetrics = p.parseUShort();
-    return vhea;
-}
-
-function makeVheaTable(options) {
-    return new table$1.Table('vhea', [
-        {name: 'version', type: 'FIXED', value: 0x00011000 /* 0x00010000 */},
-        {name: 'vertTypoAscender', type: 'FWORD', value: 0},
-        {name: 'vertTypoDescender', type: 'FWORD', value: 0},
-        {name: 'vertTypoLineGap', type: 'FWORD', value: 0},
-        {name: 'advanceHeightMax', type: 'UFWORD', value: 0},
-        {name: 'minTopSideBearing', type: 'FWORD', value: 0},
-        {name: 'minBottomSideBearing', type: 'FWORD', value: 0},
-        {name: 'yMaxExtent', type: 'FWORD', value: 0},
-        {name: 'caretSlopeRise', type: 'SHORT', value: 1},
-        {name: 'caretSlopeRun', type: 'SHORT', value: 0},
-        {name: 'caretOffset', type: 'SHORT', value: 0},
-        {name: 'reserved1', type: 'SHORT', value: 0},
-        {name: 'reserved2', type: 'SHORT', value: 0},
-        {name: 'reserved3', type: 'SHORT', value: 0},
-        {name: 'reserved4', type: 'SHORT', value: 0},
-        {name: 'metricDataFormat', type: 'SHORT', value: 0},
-        {name: 'numberOfLongVerMetrics', type: 'USHORT', value: 0}
-    ], options);
-}
-
-var vhea = { parse: parseVheaTable, make: makeVheaTable };
-
-// The `vmtx` table contains the vertical metrics for all glyphs.
-
-function parseVmtxTableAll(data, start, numMetrics, numGlyphs, glyphs) {
-    var advanceHeight;
-    var topSideBearing;
-    var p = new parse.Parser(data, start);
-    for (var i = 0; i < numGlyphs; i += 1) {
-        // If the font is monospaced, only one entry is needed. This last entry applies to all subsequent glyphs.
-        if (i < numMetrics) {
-            advanceHeight = p.parseUShort();
-            topSideBearing = p.parseShort();
-        }
-
-        var glyph = glyphs.get(i);
-        glyph.advanceHeight = advanceHeight;
-        glyph.topSideBearing = topSideBearing;
-    }
-}
-
-function parseVmtxTableOnLowMemory(font, data, start, numMetrics, numGlyphs) {
-    font._vmtxTableData = {};
-
-    var advanceHeight;
-    var topSideBearing;
-    var p = new parse.Parser(data, start);
-    for (var i = 0; i < numGlyphs; i += 1) {
-        // If the font is monospaced, only one entry is needed. This last entry applies to all subsequent glyphs.
-        if (i < numMetrics) {
-            advanceHeight = p.parseUShort();
-            topSideBearing = p.parseShort();
-        }
-
-        font._vmtxTableData[i] = {
-            advanceHeight: advanceHeight,
-            topSideBearing: topSideBearing
-        };
-    }
-}
-
-// Parse the `vmtx` table, which contains the horizontal metrics for all glyphs.
-// This function augments the glyph array, adding the advanceWidth and leftSideBearing to each glyph.
-function parseVmtxTable(font, data, start, numMetrics, numGlyphs, glyphs, opt) {
-    if (opt.lowMemory)
-        { parseVmtxTableOnLowMemory(font, data, start, numMetrics, numGlyphs); }
-    else
-        { parseVmtxTableAll(data, start, numMetrics, numGlyphs, glyphs); }
-}
-
-function makeVmtxTable(glyphs) {
-    var t = new table$1.Table('vmtx', []);
-    for (var i = 0; i < glyphs.length; i += 1) {
-        var glyph = glyphs.get(i);
-        var advanceHeight = glyph.advanceHeight || 0;
-        var topSideBearing = glyph.topSideBearing || 0;
-        t.fields.push({name: 'advanceHeight_' + i, type: 'USHORT', value: advanceHeight});
-        t.fields.push({name: 'topSideBearing_' + i, type: 'SHORT', value: topSideBearing});
-    }
-
-    return t;
-}
-
-var vmtx = { parse: parseVmtxTable, make: makeVmtxTable };
 
 // The `kern` table contains kerning pairs.
 

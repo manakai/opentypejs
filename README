@@ -8,11 +8,10 @@ repository, for more information on the original version.
 
 * Additional features
 
-  - Added support for more table versions and/or fields: |base|,
-    |cmap|, |GPOS|, |os2|, |post|, |vhea|, |vmtx|.
-  - Added support for more lookup types of |GPOS|.
+  - Added support for tables and their versions and/or fields: |base|,
+    |cmap|, |GPOS|, |meta|, |name|, |os2|, |post|, |vhea|, |vmtx|.
   - Added support for generation of |GDEF|.
-  - Added accessors for more data in font files: |cmap|, |meta|, |name|.
+  - Added accessors for vertical metrics of glyphs.
   - Added tentative support for character encodings: Shift JIS and Big5.
     In the current implementation they are decoded as Encoding Standard's
     shift_jis and big5, which is not desired for OpenType font's decoding

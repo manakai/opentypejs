@@ -11,7 +11,9 @@ import cmap from './cmap';
 import cff from './cff';
 import head from './head';
 import hhea from './hhea';
+import vhea from './vhea';
 import hmtx from './hmtx';
+import vmtx from './vmtx';
 import ltag from './ltag';
 import maxp from './maxp';
 import _name from './name';
@@ -148,8 +150,11 @@ function fontToSfntTable(font) {
     const xMaxs = [];
     const yMaxs = [];
     const advanceWidths = [];
+    const advanceHeights = [];
     const leftSideBearings = [];
     const rightSideBearings = [];
+    const topSideBearings = [];
+    const bottomSideBearings = [];
     let firstCharIndex;
     let lastCharIndex = 0;
     let ulUnicodeRange1 = 0;
@@ -157,11 +162,16 @@ function fontToSfntTable(font) {
     let ulUnicodeRange3 = 0;
     let ulUnicodeRange4 = 0;
 
+    let defaultAdvanceHeight = font.unitsPerEm;
+
     for (let i = 0; i < font.glyphs.length; i += 1) {
         const glyph = font.glyphs.get(i);
 
         if (isNaN(glyph.advanceWidth)) {
             throw new Error('Glyph ' + glyph.name + ' (' + i + '): advanceWidth is not a number.');
+        }
+        if (isNaN(glyph.advanceHeight)) {
+            glyph.advanceHeight = defaultAdvanceHeight;
         }
 
         glyph.unicodes.filter(function (unicode) {
@@ -199,7 +209,10 @@ function fontToSfntTable(font) {
         yMaxs.push(metrics.yMax);
         leftSideBearings.push(metrics.leftSideBearing);
         rightSideBearings.push(metrics.rightSideBearing);
+        topSideBearings.push(metrics.topSideBearing);
+        bottomSideBearings.push(metrics.bottomSideBearing);
         advanceWidths.push(glyph.advanceWidth);
+        advanceHeights.push(glyph.advanceHeight);
     }
 
     const globals = {
@@ -209,12 +222,18 @@ function fontToSfntTable(font) {
         yMax: Math.max.apply(null, yMaxs),
         advanceWidthMax: Math.max.apply(null, advanceWidths),
         advanceWidthAvg: average(advanceWidths),
+        advanceHeightMax: Math.max.apply(null, advanceHeights),
         minLeftSideBearing: Math.min.apply(null, leftSideBearings),
         maxLeftSideBearing: Math.max.apply(null, leftSideBearings),
-        minRightSideBearing: Math.min.apply(null, rightSideBearings)
+        minRightSideBearing: Math.min.apply(null, rightSideBearings),
+        minTopSideBearing: Math.min.apply(null, topSideBearings),
+        maxTopSideBearing: Math.max.apply(null, topSideBearings),
+        minBottomSideBearing: Math.min.apply(null, bottomSideBearings)
     };
     globals.ascender = font.ascender;
     globals.descender = font.descender;
+    globals.vAscender = font.vertTypoAscender;
+    globals.vDescender = font.vertTypoDescender;
 
     const headTable = head.make({
         flags: 3, // 00000011 (baseline for font at y=0; left sidebearing point at x=0)
@@ -235,6 +254,16 @@ function fontToSfntTable(font) {
         minRightSideBearing: globals.minRightSideBearing,
         xMaxExtent: globals.maxLeftSideBearing + (globals.xMax - globals.xMin),
         numberOfHMetrics: font.glyphs.length
+    });
+
+    const vheaTable = vhea.make({
+        vertTypoAscender: globals.vAscender,
+        vertTypoDescender: globals.vDescender,
+        advanceHeightMax: globals.advanceHeightMax,
+        minTopSideBearing: globals.minTopSideBearing,
+        minBottomSideBearing: globals.minBottomSideBearing,
+        yMaxExtent: globals.maxTopSideBearing + (globals.yMax - globals.yMiin),
+        numberOfLongVerMetrics: font.glyphs.length
     });
 
     const maxpTable = maxp.make(font.glyphs.length);
@@ -264,6 +293,7 @@ function fontToSfntTable(font) {
     }, font.tables.os2));
 
     const hmtxTable = hmtx.make(font.glyphs);
+    const vmtxTable = vmtx.make(font.glyphs);
 
     const englishFamilyName = font.getEnglishName('fontFamily');
     const englishStyleName = font.getEnglishName('fontSubfamily');
@@ -311,7 +341,8 @@ function fontToSfntTable(font) {
     const metaTable = (font.metas && Object.keys(font.metas).length > 0) ? meta.make(font.metas) : undefined;
 
     // The order does not matter because makeSfntTable() will sort them.
-    const tables = [headTable, hheaTable, maxpTable, os2Table, postTable, cffTable, hmtxTable];
+    const tables = [headTable, hheaTable, vheaTable, os2Table, postTable,
+                    maxpTable, cffTable, hmtxTable, vmtxTable];
     if (font.tables && font.tables.name && font.tables.name.arrayBufferList) {
         tables.push(new table.Table('name', [
             {name: 'all', type: 'ARRAYBUFFERLIST', value: font.tables.name.arrayBufferList},
