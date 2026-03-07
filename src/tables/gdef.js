@@ -59,4 +59,32 @@ function parseGDEFTable(data, start) {
     }
     return gdef;
 }
-export default { parse: parseGDEFTable };
+
+function makeGDEFTable(gdef) {
+    if (gdef.classDef.format !== 2) {
+        throw new Error('Unsupported class definition format (' + gdef.classDef.format + ').');
+    }
+    var t = [
+        {name: 'majorVersion', type: 'USHORT', value: 1},
+        {name: 'minorVersion', type: 'USHORT', value: 0},
+        {name: 'glyphClassDefOffset', type: 'USHORT', value: 2 * 6},
+        {name: 'attachListOffset', type: 'USHORT', value: 0},
+        {name: 'ligCaretListOffset', type: 'USHORT', value: 0},
+        {name: 'markAttachClassDefOffset', type: 'USHORT', value: 0},
+    ];
+    t = t.concat([
+        {name: 'glyphClassDef_format', type: 'USHORT', value: 2},
+        {name: 'glyphClassDef_classRangeCount', type: 'USHORT', value: gdef.classDef.ranges.length},
+    ]);
+    gdef.classDef.ranges.forEach(function (range, i) {
+        t = t.concat([
+            {name: 'glyphClassDef_startGlyphID_' + i, type: 'USHORT', value: range.start},
+            {name: 'glyphClassDef_endGlyphID_' + i, type: 'USHORT', value: range.end},
+            {name: 'glyphClassDef_class_' + i, type: 'USHORT', value: range.classId},
+        ]);
+    });
+    // XXX attachList, ligCaretList
+    return new table.Table('GDEF', t);
+}
+
+export default { parse: parseGDEFTable, make: makeGDEFTable };

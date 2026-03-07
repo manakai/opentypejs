@@ -334,6 +334,8 @@ function fontToSfntTable(font) {
         tables.push(new table.Table('GDEF', [
             {name: 'all', type: 'ARRAYBUFFERLIST', value: font.tables.gdef.arrayBufferList},
         ]));
+    } else if (font.tables.gdef) {
+        tables.push(gdef.make(font.tables.gdef));
     }
     if (font.tables && font.tables.gsub && font.tables.gsub.arrayBufferList) {
         tables.push(new table.Table('GSUB', [

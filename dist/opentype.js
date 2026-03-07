@@ -2328,7 +2328,7 @@
 
 	// Record = same as Table, but inlined (a Table has an offset and its data is further in the stream)
 	// Don't use offsets inside Records (probable bug), only in Tables.
-	var table = {
+	var table$1 = {
 	    Table: Table$1,
 	    Record: Table$1,
 	    Coverage: Coverage,
@@ -3348,7 +3348,7 @@
 	        {name: 'rangeShift', type: 'USHORT', value: 0}
 	    ]);
 
-	    var t = new table.Table('cmap', cmapTable);
+	    var t = new table$1.Table('cmap', cmapTable);
 
 	    t.segments = segments.sort(function (a, b) {
 	        return a.start - b.start;
@@ -3399,7 +3399,7 @@
 	        // CMAP 12
 	        // Skip Terminator Segment
 	        if (!isPlan0Only && segment.glyphIndex !== undefined) {
-	            var v = new table.Record('cmap12 value', [
+	            var v = new table$1.Record('cmap12 value', [
 	                {name: 'start', type: 'ULONG', value: segment.start},
 	                {name: 'end', type: 'ULONG', value: segment.end},
 	                {name: 'glyph', type: 'ULONG', value: segment.glyphIndex} ]);
@@ -5478,7 +5478,7 @@
 	}
 
 	function makeHeader() {
-	    return new table.Record('Header', [
+	    return new table$1.Record('Header', [
 	        {name: 'major', type: 'Card8', value: 1},
 	        {name: 'minor', type: 'Card8', value: 0},
 	        {name: 'hdrSize', type: 'Card8', value: 4},
@@ -5487,7 +5487,7 @@
 	}
 
 	function makeNameIndex(fontNames) {
-	    var t = new table.Record('Name INDEX', [
+	    var t = new table$1.Record('Name INDEX', [
 	        {name: 'names', type: 'INDEX', value: []}
 	    ]);
 	    t.names = [];
@@ -5518,7 +5518,7 @@
 
 	// The Top DICT houses the global font attributes.
 	function makeTopDict(attrs, strings) {
-	    var t = new table.Record('Top DICT', [
+	    var t = new table$1.Record('Top DICT', [
 	        {name: 'dict', type: 'DICT', value: {}}
 	    ]);
 	    t.dict = makeDict(TOP_DICT_META, attrs, strings);
@@ -5526,7 +5526,7 @@
 	}
 
 	function makeTopDictIndex(topDict) {
-	    var t = new table.Record('Top DICT INDEX', [
+	    var t = new table$1.Record('Top DICT INDEX', [
 	        {name: 'topDicts', type: 'INDEX', value: []}
 	    ]);
 	    t.topDicts = [{name: 'topDict_0', type: 'TABLE', value: topDict}];
@@ -5534,7 +5534,7 @@
 	}
 
 	function makeStringIndex(strings) {
-	    var t = new table.Record('String INDEX', [
+	    var t = new table$1.Record('String INDEX', [
 	        {name: 'strings', type: 'INDEX', value: []}
 	    ]);
 	    t.strings = [];
@@ -5547,13 +5547,13 @@
 
 	function makeGlobalSubrIndex() {
 	    // Currently we don't use subroutines.
-	    return new table.Record('Global Subr INDEX', [
+	    return new table$1.Record('Global Subr INDEX', [
 	        {name: 'subrs', type: 'INDEX', value: []}
 	    ]);
 	}
 
 	function makeCharsets(glyphNames, strings) {
-	    var t = new table.Record('Charsets', [
+	    var t = new table$1.Record('Charsets', [
 	        {name: 'format', type: 'Card8', value: 0}
 	    ]);
 	    for (var i = 0; i < glyphNames.length; i += 1) {
@@ -5701,13 +5701,13 @@
 
 	    var v = makeINDEXHeader(offsets, offset);
 	    var x = 0;
-	    var css = new table.Record('CharString value', [
+	    var css = new table$1.Record('CharString value', [
 	        {name: 'charStrings header', type: 'LITERAL', value: v} ].concat( literals.map(function (_) { return ({name: 'charStrings data ' + x++, type: 'LITERAL', value: _}); }) ));
 	    return css;
 	}
 
 	function makePrivateDict(attrs, strings) {
-	    var t = new table.Record('Private DICT', [
+	    var t = new table$1.Record('Private DICT', [
 	        {name: 'dict', type: 'DICT', value: {}}
 	    ]);
 	    t.dict = makeDict(PRIVATE_DICT_META, attrs, strings);
@@ -5715,7 +5715,7 @@
 	}
 
 	function makeCFFTable(glyphs, options) {
-	    var t = new table.Table('CFF ', [
+	    var t = new table$1.Table('CFF ', [
 	        {name: 'header', type: 'RECORD'},
 	        {name: 'nameIndex', type: 'RECORD'},
 	        {name: 'topDictIndex', type: 'RECORD'},
@@ -5825,7 +5825,7 @@
 	        createdTimestamp = options.createdTimestamp + 2082844800;
 	    }
 
-	    return new table.Table('head', [
+	    return new table$1.Table('head', [
 	        {name: 'version', type: 'FIXED', value: 0x00010000},
 	        {name: 'fontRevision', type: 'FIXED', value: 0x00010000},
 	        {name: 'checkSumAdjustment', type: 'ULONG', value: 0},
@@ -5872,7 +5872,7 @@
 	}
 
 	function makeHheaTable(options) {
-	    return new table.Table('hhea', [
+	    return new table$1.Table('hhea', [
 	        {name: 'version', type: 'FIXED', value: 0x00010000},
 	        {name: 'ascender', type: 'FWORD', value: 0},
 	        {name: 'descender', type: 'FWORD', value: 0},
@@ -5944,7 +5944,7 @@
 	}
 
 	function makeHmtxTable(glyphs) {
-	    var t = new table.Table('hmtx', []);
+	    var t = new table$1.Table('hmtx', []);
 	    for (var i = 0; i < glyphs.length; i += 1) {
 	        var glyph = glyphs.get(i);
 	        var advanceWidth = glyph.advanceWidth || 0;
@@ -5961,7 +5961,7 @@
 	// The `ltag` table stores IETF BCP-47 language tags. It allows supporting
 
 	function makeLtagTable(tags) {
-	    var result = new table.Table('ltag', [
+	    var result = new table$1.Table('ltag', [
 	        {name: 'version', type: 'ULONG', value: 1},
 	        {name: 'flags', type: 'ULONG', value: 0},
 	        {name: 'numTags', type: 'ULONG', value: tags.length}
@@ -6037,7 +6037,7 @@
 	}
 
 	function makeMaxpTable(numGlyphs) {
-	    return new table.Table('maxp', [
+	    return new table$1.Table('maxp', [
 	        {name: 'version', type: 'FIXED', value: 0x00005000},
 	        {name: 'numGlyphs', type: 'USHORT', value: numGlyphs}
 	    ]);
@@ -6734,7 +6734,7 @@
 	}
 
 	function makeNameRecord(platformID, encodingID, languageID, nameID, length, offset) {
-	    return new table.Record('NameRecord', [
+	    return new table$1.Record('NameRecord', [
 	        {name: 'platformID', type: 'USHORT', value: platformID},
 	        {name: 'encodingID', type: 'USHORT', value: encodingID},
 	        {name: 'languageID', type: 'USHORT', value: languageID},
@@ -6867,7 +6867,7 @@
 	                (a.nameID - b.nameID));
 	    });
 
-	    var t = new table.Table('name', [
+	    var t = new table$1.Table('name', [
 	        {name: 'format', type: 'USHORT', value: 0},
 	        {name: 'count', type: 'USHORT', value: nameRecords.length},
 	        {name: 'stringOffset', type: 'USHORT', value: 6 + nameRecords.length * 12}
@@ -7082,7 +7082,7 @@
 	}
 
 	function makeOS2Table(options) {
-	    return new table.Table('OS/2', [
+	    return new table$1.Table('OS/2', [
 	        {name: 'version', type: 'USHORT', value: 0x0003},
 	        {name: 'xAvgCharWidth', type: 'SHORT', value: 0},
 	        {name: 'usWeightClass', type: 'USHORT', value: 0},
@@ -7217,7 +7217,7 @@
 	}
 
 	function makePostTable() {
-	    return new table.Table('post', [
+	    return new table$1.Table('post', [
 	        {name: 'version', type: 'FIXED', value: 0x00030000},
 	        {name: 'italicAngle', type: 'FIXED', value: 0},
 	        {name: 'underlinePosition', type: 'FWORD', value: 0},
@@ -7445,49 +7445,49 @@
 
 	subtableMakers[1] = function makeLookup1(subtable) {
 	    if (subtable.substFormat === 1) {
-	        return new table.Table('substitutionTable', [
+	        return new table$1.Table('substitutionTable', [
 	            {name: 'substFormat', type: 'USHORT', value: 1},
-	            {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)},
+	            {name: 'coverage', type: 'TABLE', value: new table$1.Coverage(subtable.coverage)},
 	            {name: 'deltaGlyphID', type: 'SHORT', value: subtable.deltaGlyphId}
 	        ]);
 	    } else {
-	        return new table.Table('substitutionTable', [
+	        return new table$1.Table('substitutionTable', [
 	            {name: 'substFormat', type: 'USHORT', value: 2},
-	            {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)}
-	        ].concat(table.ushortList('substitute', subtable.substitute)));
+	            {name: 'coverage', type: 'TABLE', value: new table$1.Coverage(subtable.coverage)}
+	        ].concat(table$1.ushortList('substitute', subtable.substitute)));
 	    }
 	};
 
 	subtableMakers[2] = function makeLookup2(subtable) {
 	    check.assert(subtable.substFormat === 1, 'Lookup type 2 substFormat must be 1.');
-	    return new table.Table('substitutionTable', [
+	    return new table$1.Table('substitutionTable', [
 	        {name: 'substFormat', type: 'USHORT', value: 1},
-	        {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)}
-	    ].concat(table.tableList('seqSet', subtable.sequences, function(sequenceSet) {
-	        return new table.Table('sequenceSetTable', table.ushortList('sequence', sequenceSet));
+	        {name: 'coverage', type: 'TABLE', value: new table$1.Coverage(subtable.coverage)}
+	    ].concat(table$1.tableList('seqSet', subtable.sequences, function(sequenceSet) {
+	        return new table$1.Table('sequenceSetTable', table$1.ushortList('sequence', sequenceSet));
 	    })));
 	};
 
 	subtableMakers[3] = function makeLookup3(subtable) {
 	    check.assert(subtable.substFormat === 1, 'Lookup type 3 substFormat must be 1.');
-	    return new table.Table('substitutionTable', [
+	    return new table$1.Table('substitutionTable', [
 	        {name: 'substFormat', type: 'USHORT', value: 1},
-	        {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)}
-	    ].concat(table.tableList('altSet', subtable.alternateSets, function(alternateSet) {
-	        return new table.Table('alternateSetTable', table.ushortList('alternate', alternateSet));
+	        {name: 'coverage', type: 'TABLE', value: new table$1.Coverage(subtable.coverage)}
+	    ].concat(table$1.tableList('altSet', subtable.alternateSets, function(alternateSet) {
+	        return new table$1.Table('alternateSetTable', table$1.ushortList('alternate', alternateSet));
 	    })));
 	};
 
 	subtableMakers[4] = function makeLookup4(subtable) {
 	    check.assert(subtable.substFormat === 1, 'Lookup type 4 substFormat must be 1.');
-	    return new table.Table('substitutionTable', [
+	    return new table$1.Table('substitutionTable', [
 	        {name: 'substFormat', type: 'USHORT', value: 1},
-	        {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)}
-	    ].concat(table.tableList('ligSet', subtable.ligatureSets, function(ligatureSet) {
-	        return new table.Table('ligatureSetTable', table.tableList('ligature', ligatureSet, function(ligature) {
-	            return new table.Table('ligatureTable',
+	        {name: 'coverage', type: 'TABLE', value: new table$1.Coverage(subtable.coverage)}
+	    ].concat(table$1.tableList('ligSet', subtable.ligatureSets, function(ligatureSet) {
+	        return new table$1.Table('ligatureSetTable', table$1.tableList('ligature', ligatureSet, function(ligature) {
+	            return new table$1.Table('ligatureTable',
 	                [{name: 'ligGlyph', type: 'USHORT', value: ligature.ligGlyph}]
-	                .concat(table.ushortList('component', ligature.components, ligature.components.length + 1))
+	                .concat(table$1.ushortList('component', ligature.components, ligature.components.length + 1))
 	            );
 	        }));
 	    })));
@@ -7495,22 +7495,22 @@
 
 	subtableMakers[6] = function makeLookup6(subtable) {
 	    if (subtable.substFormat === 1) {
-	        var returnTable = new table.Table('chainContextTable', [
+	        var returnTable = new table$1.Table('chainContextTable', [
 	            {name: 'substFormat', type: 'USHORT', value: subtable.substFormat},
-	            {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)}
-	        ].concat(table.tableList('chainRuleSet', subtable.chainRuleSets, function(chainRuleSet) {
-	            return new table.Table('chainRuleSetTable', table.tableList('chainRule', chainRuleSet, function(chainRule) {
-	                var tableData = table.ushortList('backtrackGlyph', chainRule.backtrack, chainRule.backtrack.length)
-	                    .concat(table.ushortList('inputGlyph', chainRule.input, chainRule.input.length + 1))
-	                    .concat(table.ushortList('lookaheadGlyph', chainRule.lookahead, chainRule.lookahead.length))
-	                    .concat(table.ushortList('substitution', [], chainRule.lookupRecords.length));
+	            {name: 'coverage', type: 'TABLE', value: new table$1.Coverage(subtable.coverage)}
+	        ].concat(table$1.tableList('chainRuleSet', subtable.chainRuleSets, function(chainRuleSet) {
+	            return new table$1.Table('chainRuleSetTable', table$1.tableList('chainRule', chainRuleSet, function(chainRule) {
+	                var tableData = table$1.ushortList('backtrackGlyph', chainRule.backtrack, chainRule.backtrack.length)
+	                    .concat(table$1.ushortList('inputGlyph', chainRule.input, chainRule.input.length + 1))
+	                    .concat(table$1.ushortList('lookaheadGlyph', chainRule.lookahead, chainRule.lookahead.length))
+	                    .concat(table$1.ushortList('substitution', [], chainRule.lookupRecords.length));
 
 	                chainRule.lookupRecords.forEach(function (record, i) {
 	                    tableData = tableData
 	                        .concat({name: 'sequenceIndex' + i, type: 'USHORT', value: record.sequenceIndex})
 	                        .concat({name: 'lookupListIndex' + i, type: 'USHORT', value: record.lookupListIndex});
 	                });
-	                return new table.Table('chainRuleTable', tableData);
+	                return new table$1.Table('chainRuleTable', tableData);
 	            }));
 	        })));
 	        return returnTable;
@@ -7522,15 +7522,15 @@
 
 	        tableData.push({name: 'backtrackGlyphCount', type: 'USHORT', value: subtable.backtrackCoverage.length});
 	        subtable.backtrackCoverage.forEach(function (coverage, i) {
-	            tableData.push({name: 'backtrackCoverage' + i, type: 'TABLE', value: new table.Coverage(coverage)});
+	            tableData.push({name: 'backtrackCoverage' + i, type: 'TABLE', value: new table$1.Coverage(coverage)});
 	        });
 	        tableData.push({name: 'inputGlyphCount', type: 'USHORT', value: subtable.inputCoverage.length});
 	        subtable.inputCoverage.forEach(function (coverage, i) {
-	            tableData.push({name: 'inputCoverage' + i, type: 'TABLE', value: new table.Coverage(coverage)});
+	            tableData.push({name: 'inputCoverage' + i, type: 'TABLE', value: new table$1.Coverage(coverage)});
 	        });
 	        tableData.push({name: 'lookaheadGlyphCount', type: 'USHORT', value: subtable.lookaheadCoverage.length});
 	        subtable.lookaheadCoverage.forEach(function (coverage, i) {
-	            tableData.push({name: 'lookaheadCoverage' + i, type: 'TABLE', value: new table.Coverage(coverage)});
+	            tableData.push({name: 'lookaheadCoverage' + i, type: 'TABLE', value: new table$1.Coverage(coverage)});
 	        });
 
 	        tableData.push({name: 'substitutionCount', type: 'USHORT', value: subtable.lookupRecords.length});
@@ -7540,7 +7540,7 @@
 	                .concat({name: 'lookupListIndex' + i, type: 'USHORT', value: record.lookupListIndex});
 	        });
 
-	        var returnTable$1 = new table.Table('chainContextTable', tableData);
+	        var returnTable$1 = new table$1.Table('chainContextTable', tableData);
 
 	        return returnTable$1;
 	    }
@@ -7549,11 +7549,11 @@
 	};
 
 	function makeGsubTable(gsub) {
-	    return new table.Table('GSUB', [
+	    return new table$1.Table('GSUB', [
 	        {name: 'version', type: 'ULONG', value: 0x10000},
-	        {name: 'scripts', type: 'TABLE', value: new table.ScriptList(gsub.scripts)},
-	        {name: 'features', type: 'TABLE', value: new table.FeatureList(gsub.features)},
-	        {name: 'lookups', type: 'TABLE', value: new table.LookupList(gsub.lookups, subtableMakers)}
+	        {name: 'scripts', type: 'TABLE', value: new table$1.ScriptList(gsub.scripts)},
+	        {name: 'features', type: 'TABLE', value: new table$1.FeatureList(gsub.features)},
+	        {name: 'lookups', type: 'TABLE', value: new table$1.LookupList(gsub.lookups, subtableMakers)}
 	    ]);
 	}
 
@@ -7868,7 +7868,7 @@
 	    check.assert(subtable.posFormat === 1, 'Lookup type 1 posFormat must be 1.');
 	    var tbl = [
 	        {name: 'posFormat', type: 'USHORT', value: 1},
-	        {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)},
+	        {name: 'coverage', type: 'TABLE', value: new table$1.Coverage(subtable.coverage)},
 	        {name: 'valueFormat', type: 'USHORT', value: subtable.valueFormat} ];
 	    if (subtable.valueFormat & 0x0001) {
 	        tbl.push({name: 'xPlacement', type: 'SHORT', value: subtable.value.xPlacement});
@@ -7882,16 +7882,16 @@
 	    if (subtable.valueFormat & 0x0008) {
 	        tbl.push({name: 'yAdvance', type: 'SHORT', value: subtable.value.yAdvance});
 	    }
-	    return new table.Table('posTable', tbl);
+	    return new table$1.Table('posTable', tbl);
 	};
 
 	subtableMakers$1[2] = function makeLookup2(subtable) {
 	    if (subtable.posFormat === 1) {
 	        var tbl = [
 	            {name: 'posFormat', type: 'USHORT', value: 1},
-	            {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)},
+	            {name: 'coverage', type: 'TABLE', value: new table$1.Coverage(subtable.coverage)},
 	            {name: 'valueFormat1', type: 'USHORT', value: subtable.valueFormat1},
-	            {name: 'valueFormat2', type: 'USHORT', value: subtable.valueFormat2} ].concat(table.recordList('pairSet', subtable.pairSets, function(pairSet, i) {
+	            {name: 'valueFormat2', type: 'USHORT', value: subtable.valueFormat2} ].concat(table$1.recordList('pairSet', subtable.pairSets, function(pairSet, i) {
 	            var t = [
 	                {name: 'pairValueCount', type: 'USHORT', value: pairSet.length} ];
 	            pairSet.forEach(function(pairValue, i) {
@@ -7923,20 +7923,20 @@
 	            });
 
 	            return [
-	                {name: 'pairSet_' + i, type: 'TABLE', value: new table.Table('PairSet', t)} ];
+	                {name: 'pairSet_' + i, type: 'TABLE', value: new table$1.Table('PairSet', t)} ];
 	        }));
 
-	        return new table.Table('posTable', tbl);
+	        return new table$1.Table('posTable', tbl);
 	    } else if (subtable.posFormat === 2) {
 	        var tbl = [
 	            {name: 'posFormat', type: 'USHORT', value: 2},
-	            {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)},
+	            {name: 'coverage', type: 'TABLE', value: new table$1.Coverage(subtable.coverage)},
 	            {name: 'valueFormat1', type: 'USHORT', value: subtable.valueFormat1},
 	            {name: 'valueFormat2', type: 'USHORT', value: subtable.valueFormat2},
-	            {name: 'classDef1', type: 'TABLE', value: new table.ClassDef(subtable.classDef1)},
-	            {name: 'classDef2', type: 'TABLE', value: new table.ClassDef(subtable.classDef2)},
+	            {name: 'classDef1', type: 'TABLE', value: new table$1.ClassDef(subtable.classDef1)},
+	            {name: 'classDef2', type: 'TABLE', value: new table$1.ClassDef(subtable.classDef2)},
 	            {name: 'class1Count', type: 'USHORT', value: subtable.class1Count},
-	            {name: 'class2Count', type: 'USHORT', value: subtable.class2Count} ].concat(table.recordList('classRecords', subtable.classRecords, function(class1, i) {
+	            {name: 'class2Count', type: 'USHORT', value: subtable.class2Count} ].concat(table$1.recordList('classRecords', subtable.classRecords, function(class1, i) {
 	            var t = [];
 	            class1.forEach(function(class2, i) {
 	                if (subtable.valueFormat1 & 0x0001) {
@@ -7968,7 +7968,7 @@
 	            return t;
 	        }));
 
-	        return new table.Table('posTable', tbl);
+	        return new table$1.Table('posTable', tbl);
 	    } else {
 	        check.assert(false, 'Lookup type 2 posFormat must be 1 or 2.');
 	    }
@@ -7979,43 +7979,43 @@
 	    var cache = new Map;
 	    var tbl = [
 	        {name: 'posFormat', type: 'USHORT', value: 1},
-	        {name: 'markCoverage', type: 'TABLE', value: new table.Coverage(subtable.markCoverage || subtable.mark1Coverage)},
-	        {name: 'baseCoverage', type: 'TABLE', value: new table.Coverage(subtable.baseCoverage || subtable.mark2Coverage)},
+	        {name: 'markCoverage', type: 'TABLE', value: new table$1.Coverage(subtable.markCoverage || subtable.mark1Coverage)},
+	        {name: 'baseCoverage', type: 'TABLE', value: new table$1.Coverage(subtable.baseCoverage || subtable.mark2Coverage)},
 	        {name: 'markClassCount', type: 'USHORT', value: subtable.markClassCount},
-	        {name: 'markArray', type: 'TABLE', value: new table.Table('MarkArray', [].concat(table.recordList('MarkArray', subtable.marks || subtable.mark1s, function(mark, i) {
+	        {name: 'markArray', type: 'TABLE', value: new table$1.Table('MarkArray', [].concat(table$1.recordList('MarkArray', subtable.marks || subtable.mark1s, function(mark, i) {
 	            return [
 	                {name: 'markClass_' + i, type: 'USHORT', value: mark.markClass},
-	                {name: 'markAnchor_' + i, type: 'TABLE', value: new table.Anchor(mark.markAnchor, cache)} ];
+	                {name: 'markAnchor_' + i, type: 'TABLE', value: new table$1.Anchor(mark.markAnchor, cache)} ];
 	        })))},
-	        {name: 'baseArray', type: 'TABLE', value: new Table('BaseArray', [].concat(table.recordList('BaseArray', subtable.bases || subtable.mark2s, function(base, i) {
+	        {name: 'baseArray', type: 'TABLE', value: new Table('BaseArray', [].concat(table$1.recordList('BaseArray', subtable.bases || subtable.mark2s, function(base, i) {
 	            return (base.baseAnchors || base.mark2Anchors).map(function (anchor, j) {
 	                return [
-	                    {name: 'baseAnchor_' + i + '_' + j, type: 'TABLE', value: new table.Anchor(anchor, cache)}
+	                    {name: 'baseAnchor_' + i + '_' + j, type: 'TABLE', value: new table$1.Anchor(anchor, cache)}
 	                ];
 	            }).flat();
 	        })))} ];
-	    return new table.Table('posTable', tbl);
+	    return new table$1.Table('posTable', tbl);
 	};
 	subtableMakers$1[6] = subtableMakers$1[4];
 
 	subtableMakers$1[8] = function makeLookup8(subtable) {
 	    if (subtable.posFormat === 1) {
-	        var returnTable = new table.Table('chainContextTable', [
+	        var returnTable = new table$1.Table('chainContextTable', [
 	            {name: 'posFormat', type: 'USHORT', value: subtable.posFormat},
-	            {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)}
-	        ].concat(table.tableList('chainRuleSet', subtable.chainRuleSets, function(chainRuleSet) {
-	            return new table.Table('chainRuleSetTable', table.tableList('chainRule', chainRuleSet, function(chainRule) {
-	                var tableData = table.ushortList('backtrackGlyph', chainRule.backtrack, chainRule.backtrack.length)
-	                    .concat(table.ushortList('inputGlyph', chainRule.input, chainRule.input.length + 1))
-	                    .concat(table.ushortList('lookaheadGlyph', chainRule.lookahead, chainRule.lookahead.length))
-	                    .concat(table.ushortList('substitution', [], chainRule.lookupRecords.length));
+	            {name: 'coverage', type: 'TABLE', value: new table$1.Coverage(subtable.coverage)}
+	        ].concat(table$1.tableList('chainRuleSet', subtable.chainRuleSets, function(chainRuleSet) {
+	            return new table$1.Table('chainRuleSetTable', table$1.tableList('chainRule', chainRuleSet, function(chainRule) {
+	                var tableData = table$1.ushortList('backtrackGlyph', chainRule.backtrack, chainRule.backtrack.length)
+	                    .concat(table$1.ushortList('inputGlyph', chainRule.input, chainRule.input.length + 1))
+	                    .concat(table$1.ushortList('lookaheadGlyph', chainRule.lookahead, chainRule.lookahead.length))
+	                    .concat(table$1.ushortList('substitution', [], chainRule.lookupRecords.length));
 
 	                chainRule.lookupRecords.forEach(function (record, i) {
 	                    tableData = tableData
 	                        .concat({name: 'sequenceIndex' + i, type: 'USHORT', value: record.sequenceIndex})
 	                        .concat({name: 'lookupListIndex' + i, type: 'USHORT', value: record.lookupListIndex});
 	                });
-	                return new table.Table('chainRuleTable', tableData);
+	                return new table$1.Table('chainRuleTable', tableData);
 	            }));
 	        })));
 	        return returnTable;
@@ -8027,15 +8027,15 @@
 
 	        tableData.push({name: 'backtrackGlyphCount', type: 'USHORT', value: subtable.backtrackCoverage.length});
 	        subtable.backtrackCoverage.forEach(function (coverage, i) {
-	            tableData.push({name: 'backtrackCoverage' + i, type: 'TABLE', value: new table.Coverage(coverage)});
+	            tableData.push({name: 'backtrackCoverage' + i, type: 'TABLE', value: new table$1.Coverage(coverage)});
 	        });
 	        tableData.push({name: 'inputGlyphCount', type: 'USHORT', value: subtable.inputCoverage.length});
 	        subtable.inputCoverage.forEach(function (coverage, i) {
-	            tableData.push({name: 'inputCoverage' + i, type: 'TABLE', value: new table.Coverage(coverage)});
+	            tableData.push({name: 'inputCoverage' + i, type: 'TABLE', value: new table$1.Coverage(coverage)});
 	        });
 	        tableData.push({name: 'lookaheadGlyphCount', type: 'USHORT', value: subtable.lookaheadCoverage.length});
 	        subtable.lookaheadCoverage.forEach(function (coverage, i) {
-	            tableData.push({name: 'lookaheadCoverage' + i, type: 'TABLE', value: new table.Coverage(coverage)});
+	            tableData.push({name: 'lookaheadCoverage' + i, type: 'TABLE', value: new table$1.Coverage(coverage)});
 	        });
 
 	        tableData.push({name: 'substitutionCount', type: 'USHORT', value: subtable.lookupRecords.length});
@@ -8045,7 +8045,7 @@
 	                .concat({name: 'lookupListIndex' + i, type: 'USHORT', value: record.lookupListIndex});
 	        });
 
-	        var returnTable$1 = new table.Table('chainContextTable', tableData);
+	        var returnTable$1 = new table$1.Table('chainContextTable', tableData);
 
 	        return returnTable$1;
 	    }
@@ -8058,7 +8058,7 @@
 	        var maker = subtableMakers$1[subtable.extensionLookupType];
 	        if (!maker) { check.assert(false, 'extension lookup type must be supported one.'); }
 
-	        return new table.Table('posExtensionFormat1Table', [
+	        return new table$1.Table('posExtensionFormat1Table', [
 	            {name: 'posFormat', type: 'USHORT', value: subtable.posFormat},
 	            {name: 'extensionLookupFormat', type: 'USHORT', value: subtable.extensionLookupType},
 	            {name: 'extensionOffset', type: 'TABLE32', value: maker(subtable.extension)} ]);
@@ -8067,11 +8067,11 @@
 	};
 
 	function makeGposTable(gpos) {
-	    return new table.Table('GPOS', [
+	    return new table$1.Table('GPOS', [
 	        {name: 'version', type: 'ULONG', value: 0x10000},
-	        {name: 'scripts', type: 'TABLE', value: new table.ScriptList(gpos.scripts)},
-	        {name: 'features', type: 'TABLE', value: new table.FeatureList(gpos.features)},
-	        {name: 'lookups', type: 'TABLE', value: new table.LookupList(gpos.lookups, subtableMakers$1)}
+	        {name: 'scripts', type: 'TABLE', value: new table$1.ScriptList(gpos.scripts)},
+	        {name: 'features', type: 'TABLE', value: new table$1.FeatureList(gpos.features)},
+	        {name: 'lookups', type: 'TABLE', value: new table$1.LookupList(gpos.lookups, subtableMakers$1)}
 	    ]);
 	}
 
@@ -8109,7 +8109,7 @@
 	    var stringPool = '';
 	    var stringPoolOffset = 16 + numTags * 12;
 
-	    var result = new table.Table('meta', [
+	    var result = new table$1.Table('meta', [
 	        {name: 'version', type: 'ULONG', value: 1},
 	        {name: 'flags', type: 'ULONG', value: 0},
 	        {name: 'offset', type: 'ULONG', value: stringPoolOffset},
@@ -8169,7 +8169,7 @@
 	    check.argument(version === 0x0000, 'Only COLRv0 supported.');
 	    var baseGlyphRecordsOffset = 14;
 	    var layerRecordsOffset = baseGlyphRecordsOffset + (baseGlyphRecords.length * 6);
-	    return new table.Table('COLR', [
+	    return new table$1.Table('COLR', [
 	        { name: 'version', type: 'USHORT', value: version },
 	        { name: 'numBaseGlyphRecords', type: 'USHORT', value: baseGlyphRecords.length },
 	        { name: 'baseGlyphRecordsOffset', type: 'ULONG', value: baseGlyphRecordsOffset },
@@ -8218,7 +8218,7 @@
 	    if (colorRecordIndices.length > 1) {
 	        check.argument(numPaletteEntries, 'Can\'t infer numPaletteEntries on multiple colorRecordIndices');
 	    }
-	    return new table.Table('CPAL', [
+	    return new table$1.Table('CPAL', [
 	        { name: 'version', type: 'USHORT', value: version },
 	        { name: 'numPaletteEntries', type: 'USHORT', value: numPaletteEntries || colorRecords.length },
 	        { name: 'numPalettes', type: 'USHORT', value: colorRecordIndices.length },
@@ -8261,7 +8261,7 @@
 	}
 
 	function makeTableRecord(tag, checkSum, offset, length) {
-	    return new table.Record('Table Record', [
+	    return new table$1.Record('Table Record', [
 	        {name: 'tag', type: 'TAG', value: tag !== undefined ? tag : ''},
 	        {name: 'checkSum', type: 'ULONG', value: checkSum !== undefined ? checkSum : 0},
 	        {name: 'offset', type: 'ULONG', value: offset !== undefined ? offset : 0},
@@ -8270,7 +8270,7 @@
 	}
 
 	function makeSfntTable(tables) {
-	    var sfnt = new table.Table('sfnt', [
+	    var sfnt = new table$1.Table('sfnt', [
 	        {name: 'version', type: 'TAG', value: 'OTTO'},
 	        {name: 'numTables', type: 'USHORT', value: 0},
 	        {name: 'searchRange', type: 'USHORT', value: 0},
@@ -8521,13 +8521,13 @@
 	    // The order does not matter because makeSfntTable() will sort them.
 	    var tables = [headTable, hheaTable, maxpTable, os2Table, postTable, cffTable, hmtxTable];
 	    if (font.tables && font.tables.name && font.tables.name.arrayBufferList) {
-	        tables.push(new table.Table('name', [
+	        tables.push(new table$1.Table('name', [
 	            {name: 'all', type: 'ARRAYBUFFERLIST', value: font.tables.name.arrayBufferList} ]));
 	    } else {
 	        tables.push(_name.make(names, languageTags));
 	    }
 	    if (font.tables && font.tables.cmap && font.tables.cmap.arrayBufferList) {
-	        tables.push(new table.Table('cmap', [
+	        tables.push(new table$1.Table('cmap', [
 	            {name: 'all', type: 'ARRAYBUFFERLIST', value: font.tables.cmap.arrayBufferList} ]));
 	    } else {
 	        tables.push(cmap.make(font.glyphs));
@@ -8537,29 +8537,31 @@
 	    }
 	    // Optional tables
 	    if (font.tables && font.tables.gdef && font.tables.gdef.arrayBufferList) {
-	        tables.push(new table.Table('GDEF', [
+	        tables.push(new table$1.Table('GDEF', [
 	            {name: 'all', type: 'ARRAYBUFFERLIST', value: font.tables.gdef.arrayBufferList} ]));
+	    } else if (font.tables.gdef) {
+	        tables.push(gdef.make(font.tables.gdef));
 	    }
 	    if (font.tables && font.tables.gsub && font.tables.gsub.arrayBufferList) {
-	        tables.push(new table.Table('GSUB', [
+	        tables.push(new table$1.Table('GSUB', [
 	            {name: 'all', type: 'ARRAYBUFFERLIST', value: font.tables.gsub.arrayBufferList} ]));
 	    } else if (font.tables.gsub) {
 	        tables.push(gsub.make(font.tables.gsub));
 	    }
 	    if (font.tables && font.tables.gpos && font.tables.gpos.arrayBufferList) {
-	        tables.push(new table.Table('GPOS', [
+	        tables.push(new table$1.Table('GPOS', [
 	            {name: 'all', type: 'ARRAYBUFFERLIST', value: font.tables.gpos.arrayBufferList} ]));
 	    } else if (font.tables.gpos) {
 	        tables.push(gpos.make(font.tables.gpos));
 	    }
 	    if (font.tables && font.tables.cpal && font.tables.cpal.arrayBufferList) {
-	        tables.push(new table.Table('CPAL', [
+	        tables.push(new table$1.Table('CPAL', [
 	            {name: 'all', type: 'ARRAYBUFFERLIST', value: font.tables.cpal.arrayBufferList} ]));
 	    } else if (font.tables.cpal) {
 	        tables.push(cpal.make(font.tables.cpal));
 	    }
 	    if (font.tables && font.tables.colr && font.tables.colr.arrayBufferList) {
-	        tables.push(new table.Table('COLR', [
+	        tables.push(new table$1.Table('COLR', [
 	            {name: 'all', type: 'ARRAYBUFFERLIST', value: font.tables.colr.arrayBufferList} ]));
 	    } else if (font.tables.colr) {
 	        tables.push(colr.make(font.tables.colr));
@@ -15066,7 +15068,7 @@
 	}
 
 	function makeFvarTable(fvar, names) {
-	    var result = new table.Table('fvar', [
+	    var result = new table$1.Table('fvar', [
 	        {name: 'version', type: 'ULONG', value: 0x10000},
 	        {name: 'offsetToData', type: 'USHORT', value: 0},
 	        {name: 'countSizePairs', type: 'USHORT', value: 2},
@@ -15173,7 +15175,32 @@
 	    }
 	    return gdef;
 	}
-	var gdef = { parse: parseGDEFTable };
+
+	function makeGDEFTable(gdef) {
+	    if (gdef.classDef.format !== 2) {
+	        throw new Error('Unsupported class definition format (' + gdef.classDef.format + ').');
+	    }
+	    var t = [
+	        {name: 'majorVersion', type: 'USHORT', value: 1},
+	        {name: 'minorVersion', type: 'USHORT', value: 0},
+	        {name: 'glyphClassDefOffset', type: 'USHORT', value: 2 * 6},
+	        {name: 'attachListOffset', type: 'USHORT', value: 0},
+	        {name: 'ligCaretListOffset', type: 'USHORT', value: 0},
+	        {name: 'markAttachClassDefOffset', type: 'USHORT', value: 0} ];
+	    t = t.concat([
+	        {name: 'glyphClassDef_format', type: 'USHORT', value: 2},
+	        {name: 'glyphClassDef_classRangeCount', type: 'USHORT', value: gdef.classDef.ranges.length} ]);
+	    gdef.classDef.ranges.forEach(function (range, i) {
+	        t = t.concat([
+	            {name: 'glyphClassDef_startGlyphID_' + i, type: 'USHORT', value: range.start},
+	            {name: 'glyphClassDef_endGlyphID_' + i, type: 'USHORT', value: range.end},
+	            {name: 'glyphClassDef_class_' + i, type: 'USHORT', value: range.classId} ]);
+	    });
+	    // XXX attachList, ligCaretList
+	    return new table.Table('GDEF', t);
+	}
+
+	var gdef$1 = { parse: parseGDEFTable, make: makeGDEFTable };
 
 	// The `vhea` table contains information for vertical layout.
 
@@ -15199,7 +15226,7 @@
 	}
 
 	function makeVheaTable(options) {
-	    return new table.Table('vhea', [
+	    return new table$1.Table('vhea', [
 	        {name: 'version', type: 'FIXED', value: 0x00011000 /* 0x00010000 */},
 	        {name: 'vertTypoAscender', type: 'FWORD', value: 0},
 	        {name: 'vertTypoDescender', type: 'FWORD', value: 0},
@@ -15271,7 +15298,7 @@
 	}
 
 	function makeVmtxTable(glyphs) {
-	    var t = new table.Table('vmtx', []);
+	    var t = new table$1.Table('vmtx', []);
 	    for (var i = 0; i < glyphs.length; i += 1) {
 	        var glyph = glyphs.get(i);
 	        var advanceHeight = glyph.advanceHeight || 0;
@@ -15438,7 +15465,7 @@
 	}
 
 	function makeBASETable(options) {
-	    var baseTable = new table.Table('BASE', [
+	    var baseTable = new table$1.Table('BASE', [
 	        {name: 'majorVersion', type: 'USHORT', value: 1},
 	        {name: 'minorVersion', type: 'USHORT', value: 1},
 	        {name: 'horizAxisOffset', type: 'USHORT', value: 0},
@@ -15803,7 +15830,7 @@
 
 	    if (gdefTableEntry) {
 	        var gdefTable = uncompressTable(data, gdefTableEntry);
-	        font.tables.gdef = gdef.parse(gdefTable.data, gdefTable.offset);
+	        font.tables.gdef = gdef$1.parse(gdefTable.data, gdefTable.offset);
 	    }
 
 	    if (gposTableEntry) {
