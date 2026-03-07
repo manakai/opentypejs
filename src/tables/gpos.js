@@ -330,6 +330,125 @@ subtableMakers[1] = function makeLookup1(subtable) {
     return new table.Table('posTable', tbl);
 };
 
+subtableMakers[2] = function makeLookup2(subtable) {
+    if (subtable.posFormat === 1) {
+        var tbl = [
+            {name: 'posFormat', type: 'USHORT', value: 1},
+            {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)},
+            {name: 'valueFormat1', type: 'USHORT', value: subtable.valueFormat1},
+            {name: 'valueFormat2', type: 'USHORT', value: subtable.valueFormat2},
+        ].concat(table.recordList('pairSet', subtable.pairSets, function(pairSet, i) {
+            var t = [
+                {name: 'pairValueCount', type: 'USHORT', value: pairSet.length},
+            ];
+            pairSet.forEach(function(pairValue, i) {
+                t.push({name: 'secondGlyph_' + i, type: 'USHORT', value: pairValue.secondGlyph});
+                if (subtable.valueFormat1 & 0x0001) {
+                    t.push({name: 'xPlacement1_' + i, type: 'SHORT', value: pairValue.value1.xPlacement});
+                }
+                if (subtable.valueFormat1 & 0x0002) {
+                    t.push({name: 'yPlacement1_' + i, type: 'SHORT', value: pairValue.value1.yPlacement});
+                }
+                if (subtable.valueFormat1 & 0x0004) {
+                    t.push({name: 'xAdvance1_' + i, type: 'SHORT', value: pairValue.value1.xAdvance});
+                }
+                if (subtable.valueFormat1 & 0x0008) {
+                    t.push({name: 'yAdvance1_' + i, type: 'SHORT', value: pairValue.value1.yAdvance});
+                }
+                if (subtable.valueFormat2 & 0x0001) {
+                    t.push({name: 'xPlacement2_' + i, type: 'SHORT', value: pairValue.value2.xPlacement});
+                }
+                if (subtable.valueFormat2 & 0x0002) {
+                    t.push({name: 'yPlacement2_' + i, type: 'SHORT', value: pairValue.value2.yPlacement});
+                }
+                if (subtable.valueFormat2 & 0x0004) {
+                    t.push({name: 'xAdvance2_' + i, type: 'SHORT', value: pairValue.value2.xAdvance});
+                }
+                if (subtable.valueFormat2 & 0x0008) {
+                    t.push({name: 'yAdvance2_' + i, type: 'SHORT', value: pairValue.value2.yAdvance});
+                }
+            });
+
+            return [
+                {name: 'pairSet_' + i, type: 'TABLE', value: new table.Table('PairSet', t)},
+            ];
+        }));
+
+        return new table.Table('posTable', tbl);
+    } else if (subtable.posFormat === 2) {
+        var tbl = [
+            {name: 'posFormat', type: 'USHORT', value: 2},
+            {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)},
+            {name: 'valueFormat1', type: 'USHORT', value: subtable.valueFormat1},
+            {name: 'valueFormat2', type: 'USHORT', value: subtable.valueFormat2},
+            {name: 'classDef1', type: 'TABLE', value: new table.ClassDef(subtable.classDef1)},
+            {name: 'classDef2', type: 'TABLE', value: new table.ClassDef(subtable.classDef2)},
+            {name: 'class1Count', type: 'USHORT', value: subtable.class1Count},
+            {name: 'class2Count', type: 'USHORT', value: subtable.class2Count},
+        ].concat(table.recordList('classRecords', subtable.classRecords, function(class1, i) {
+            var t = [];
+            class1.forEach(function(class2, i) {
+                if (subtable.valueFormat1 & 0x0001) {
+                    t.push({name: 'xPlacement1_' + i, type: 'SHORT', value: class2.value1.xPlacement});
+                }
+                if (subtable.valueFormat1 & 0x0002) {
+                    t.push({name: 'yPlacement1_' + i, type: 'SHORT', value: class2.value1.yPlacement});
+                }
+                if (subtable.valueFormat1 & 0x0004) {
+                    t.push({name: 'xAdvance1_' + i, type: 'SHORT', value: class2.value1.xAdvance});
+                }
+                if (subtable.valueFormat1 & 0x0008) {
+                    t.push({name: 'yAdvance1_' + i, type: 'SHORT', value: class2.value1.yAdvance});
+                }
+                if (subtable.valueFormat2 & 0x0001) {
+                    t.push({name: 'xPlacement2_' + i, type: 'SHORT', value: class2.value2.xPlacement});
+                }
+                if (subtable.valueFormat2 & 0x0002) {
+                    t.push({name: 'yPlacement2_' + i, type: 'SHORT', value: class2.value2.yPlacement});
+                }
+                if (subtable.valueFormat2 & 0x0004) {
+                    t.push({name: 'xAdvance2_' + i, type: 'SHORT', value: class2.value2.xAdvance});
+                }
+                if (subtable.valueFormat2 & 0x0008) {
+                    t.push({name: 'yAdvance2_' + i, type: 'SHORT', value: class2.value2.yAdvance});
+                }
+            });
+
+            return t;
+        }));
+
+        return new table.Table('posTable', tbl);
+    } else {
+        check.assert(false, 'Lookup type 2 posFormat must be 1 or 2.');
+    }
+};
+
+subtableMakers[4] = function makeLookup4(subtable) {
+    check.assert(subtable.posFormat === 1, 'Lookup type 4 posFormat must be 1.');
+    var cache = new Map;
+    var tbl = [
+        {name: 'posFormat', type: 'USHORT', value: 1},
+        {name: 'markCoverage', type: 'TABLE', value: new table.Coverage(subtable.markCoverage || subtable.mark1Coverage)},
+        {name: 'baseCoverage', type: 'TABLE', value: new table.Coverage(subtable.baseCoverage || subtable.mark2Coverage)},
+        {name: 'markClassCount', type: 'USHORT', value: subtable.markClassCount},
+        {name: 'markArray', type: 'TABLE', value: new table.Table('MarkArray', [].concat(table.recordList('MarkArray', subtable.marks || subtable.mark1s, function(mark, i) {
+            return [
+                {name: 'markClass_' + i, type: 'USHORT', value: mark.markClass},
+                {name: 'markAnchor_' + i, type: 'TABLE', value: new table.Anchor(mark.markAnchor, cache)},
+            ];
+        })))},
+        {name: 'baseArray', type: 'TABLE', value: new Table('BaseArray', [].concat(table.recordList('BaseArray', subtable.bases || subtable.mark2s, function(base, i) {
+            return (base.baseAnchors || base.mark2Anchors).map(function (anchor, j) {
+                return [
+                    {name: 'baseAnchor_' + i + '_' + j, type: 'TABLE', value: new table.Anchor(anchor, cache)}
+                ];
+            }).flat();
+        })))},
+    ];
+    return new table.Table('posTable', tbl);
+};
+subtableMakers[6] = subtableMakers[4];
+
 subtableMakers[8] = function makeLookup8(subtable) {
     if (subtable.posFormat === 1) {
         let returnTable = new table.Table('chainContextTable', [
@@ -342,7 +461,7 @@ subtableMakers[8] = function makeLookup8(subtable) {
                     .concat(table.ushortList('lookaheadGlyph', chainRule.lookahead, chainRule.lookahead.length))
                     .concat(table.ushortList('substitution', [], chainRule.lookupRecords.length));
 
-                chainRule.lookupRecords.forEach((record, i) => {
+                chainRule.lookupRecords.forEach(function (record, i) {
                     tableData = tableData
                         .concat({name: 'sequenceIndex' + i, type: 'USHORT', value: record.sequenceIndex})
                         .concat({name: 'lookupListIndex' + i, type: 'USHORT', value: record.lookupListIndex});
@@ -359,20 +478,20 @@ subtableMakers[8] = function makeLookup8(subtable) {
         ];
 
         tableData.push({name: 'backtrackGlyphCount', type: 'USHORT', value: subtable.backtrackCoverage.length});
-        subtable.backtrackCoverage.forEach((coverage, i) => {
+        subtable.backtrackCoverage.forEach(function (coverage, i) {
             tableData.push({name: 'backtrackCoverage' + i, type: 'TABLE', value: new table.Coverage(coverage)});
         });
         tableData.push({name: 'inputGlyphCount', type: 'USHORT', value: subtable.inputCoverage.length});
-        subtable.inputCoverage.forEach((coverage, i) => {
+        subtable.inputCoverage.forEach(function (coverage, i) {
             tableData.push({name: 'inputCoverage' + i, type: 'TABLE', value: new table.Coverage(coverage)});
         });
         tableData.push({name: 'lookaheadGlyphCount', type: 'USHORT', value: subtable.lookaheadCoverage.length});
-        subtable.lookaheadCoverage.forEach((coverage, i) => {
+        subtable.lookaheadCoverage.forEach(function (coverage, i) {
             tableData.push({name: 'lookaheadCoverage' + i, type: 'TABLE', value: new table.Coverage(coverage)});
         });
 
         tableData.push({name: 'substitutionCount', type: 'USHORT', value: subtable.lookupRecords.length});
-        subtable.lookupRecords.forEach((record, i) => {
+        subtable.lookupRecords.forEach(function (record, i) {
             tableData = tableData
                 .concat({name: 'sequenceIndex' + i, type: 'USHORT', value: record.sequenceIndex})
                 .concat({name: 'lookupListIndex' + i, type: 'USHORT', value: record.lookupListIndex});
@@ -384,6 +503,20 @@ subtableMakers[8] = function makeLookup8(subtable) {
     }
 
     check.assert(false, 'lookup type 8 format must be 1, 2 or 3.');
+};
+
+subtableMakers[9] = function makeLookup9(subtable) {
+    if (subtable.posFormat === 1) {
+        var maker = subtableMakers[subtable.extensionLookupType];
+        if (!maker) check.assert(false, 'extension lookup type must be supported one.');
+
+        return new table.Table('posExtensionFormat1Table', [
+            {name: 'posFormat', type: 'USHORT', value: subtable.posFormat},
+            {name: 'extensionLookupFormat', type: 'USHORT', value: subtable.extensionLookupType},
+            {name: 'extensionOffset', type: 'TABLE32', value: maker(subtable.extension)},
+        ]);
+    }
+    check.assert(false, 'lookup type 9 format must be 1.');
 };
 
 function makeGposTable(gpos) {

@@ -9,7 +9,7 @@ repository, for more information on the original version.
 * Additional features
 
   - Added support for more table versions and/or fields: |base|,
-    |cmap|, |gpos|, |os2|, |post|, |vhea|, |vmtx|.
+    |cmap|, |GPOS|, |os2|, |post|, |vhea|, |vmtx|.
   - Added accessors for more data in font files: |cmap|, |meta|, |name|.
   - Added tentative support for character encodings: Shift JIS and Big5.
     In the current implementation they are decoded as Encoding Standard's
@@ -39,3 +39,7 @@ repository, for more information on the original version.
           },
         },
       });
+
+* License
+
+Same as the original version.  See |LICENSE|.

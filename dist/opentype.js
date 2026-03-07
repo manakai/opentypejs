@@ -1864,6 +1864,8 @@
 	    var length = table.fields.length;
 	    var subtables = [];
 	    var subtableOffsets = [];
+	    var subtables32 = [];
+	    var subtableOffsets32 = [];
 
 	    for (var i = 0; i < length; i += 1) {
 	        var field = table.fields[i];
@@ -1880,6 +1882,10 @@
 	            subtableOffsets.push(d.length);
 	            d.push(0, 0);
 	            subtables.push(bytes);
+	        } else if (field.type === 'TABLE32') {
+	            subtableOffsets32.push(d.length);
+	            d.push(0, 0, 0, 0);
+	            subtables32.push(bytes);
 	        } else if (field.type === 'ARRAYBUFFERLIST') {
 	            var offsets = [];
 	            subtableOffsets.push(offsets);
@@ -1902,6 +1908,18 @@
 	            d.push(subtables[i$1][j$1]);
 	        }
 	    }
+	    for (var i$2 = 0; i$2 < subtables32.length; i$2 += 1) {
+	        var o$1 = subtableOffsets32[i$2];
+	        var offset$1 = d.length;
+	        check.argument(offset$1 < Math.pow( 2, 32 ), 'Table ' + table.tableName + ' too big.');
+	        d[o$1] = offset$1 >> 24;
+	        d[o$1 + 1] = (offset$1 >> 16) & 0xff;
+	        d[o$1 + 2] = (offset$1 >> 8) & 0xff;
+	        d[o$1 + 3] = offset$1 & 0xff;
+	        for (var j$2 = 0; j$2 < subtables32[i$2].length; j$2++) {
+	            d.push(subtables32[i$2][j$2]);
+	        }
+	    }
 
 	    return d;
 	};
@@ -1920,6 +1938,8 @@
 	    var length = table.fields.length;
 	    var subtables = [];
 	    var subtableOffsets = [];
+	    var subtables32 = [];
+	    var subtableOffsets32 = [];
 
 	    for (var i = 0; i < length; i += 1) {
 	        var field = table.fields[i];
@@ -1934,15 +1954,20 @@
 	            put([0, 0]);
 	            var ab$1 = encodingABFunction(value);
 	            subtables.push(ab$1);
+	        } else if (field.type === 'TABLE32') {
+	            subtableOffsets32.push(nextOffset);
+	            put([0, 0, 0, 0]);
+	            var ab$2 = encodingABFunction(value);
+	            subtables32.push(ab$2);
 	        } else if (field.type === 'ARRAYBUFFERLIST') {
 	            var offsets = [];
 	            subtableOffsets.push(offsets);
-	            var ab$2 = encodingABFunction(value);
-	            subtables.push(ab$2);
+	            var ab$3 = encodingABFunction(value);
+	            subtables.push(ab$3);
 	        } else {
 	            if (encodingABFunction) {
-	                var ab$3 = encodingABFunction(value);
-	                put(new Uint8Array(ab$3));
+	                var ab$4 = encodingABFunction(value);
+	                put(new Uint8Array(ab$4));
 	            } else {
 	                var encodingFunction = encode[field.type];
 	                check.argument(encodingFunction !== undefined, 'No encoding function for field type ' + field.type + ' (' + field.name + ')');
@@ -1958,6 +1983,16 @@
 	        a8[o + 1] = nextOffset & 0xff;
 	        var subtable8 = new Uint8Array(subtables[i$1]);
 	        put(subtable8);
+	    }
+	    for (var i$2 = 0; i$2 < subtables32.length; i$2 += 1) {
+	        var o$1 = subtableOffsets32[i$2];
+	        a8[o$1] = nextOffset >> 24;
+	        a8[o$1 + 1] = (nextOffset >> 16) & 0xff;
+	        a8[o$1 + 2] = (nextOffset >> 8) & 0xff;
+	        a8[o$1 + 3] = nextOffset & 0xff;
+	        check.argument(nextOffset < Math.pow( 2, 32 ), 'Table ' + table.tableName + ' too big.');
+	        var subtable8$1 = new Uint8Array(subtables32[i$2]);
+	        put(subtable8$1);
 	    }
 
 	    return ab;
@@ -1985,6 +2020,8 @@
 	        // Subtables take 2 more bytes for offsets.
 	        if (field.type === 'TABLE') {
 	            numBytes += 2;
+	        } else if (field.type === 'TABLE32') {
+	            numBytes += 4;
 	        }
 	    }
 
@@ -1994,6 +2031,10 @@
 	encode.RECORD = encode.TABLE;
 	encodeAB.RECORD = encodeAB.TABLE;
 	sizeOf.RECORD = sizeOf.TABLE;
+
+	encode.TABLE32 = encode.TABLE;
+	encodeAB.TABLE32 = encodeAB.TABLE;
+	sizeOf.TABLE32 = sizeOf.TABLE;
 
 	// Merge in a list of bytes.
 	encode.LITERAL = function(v) {
@@ -2038,7 +2079,7 @@
 	 * @param {Object} options
 	 * @constructor
 	 */
-	function Table(tableName, fields, options) {
+	function Table$1(tableName, fields, options) {
 	    // For coverage tables with coverage format 2, we do not want to add the coverage data directly to the table object,
 	    // as this will result in wrong encoding order of the coverage data on serialization to bytes.
 	    // The fallback of using the field values directly when not present on the table is handled in types.encode.TABLE() already.
@@ -2067,11 +2108,11 @@
 	 * Encodes the table and returns an array of bytes
 	 * @return {Array}
 	 */
-	Table.prototype.encode = function() {
+	Table$1.prototype.encode = function() {
 	    return encode.TABLE(this);
 	};
 
-	Table.prototype.encodeIntoArrayBuffer = function() {
+	Table$1.prototype.encodeIntoArrayBuffer = function() {
 	    return encodeAB.TABLE(this);
 	};
 
@@ -2079,7 +2120,7 @@
 	 * Get the size of the table.
 	 * @return {number}
 	 */
-	Table.prototype.sizeOf = function() {
+	Table$1.prototype.sizeOf = function() {
 	    return sizeOf.TABLE(this);
 	};
 
@@ -2135,12 +2176,12 @@
 	 */
 	function Coverage(coverageTable) {
 	    if (coverageTable.format === 1) {
-	        Table.call(this, 'coverageTable',
+	        Table$1.call(this, 'coverageTable',
 	            [{name: 'coverageFormat', type: 'USHORT', value: 1}]
 	            .concat(ushortList('glyph', coverageTable.glyphs))
 	        );
 	    } else if (coverageTable.format === 2) {
-	        Table.call(this, 'coverageTable',
+	        Table$1.call(this, 'coverageTable',
 	            [{name: 'coverageFormat', type: 'USHORT', value: 2}]
 	            .concat(recordList('rangeRecord', coverageTable.ranges, function(RangeRecord) {
 	                return [
@@ -2153,19 +2194,75 @@
 	        check.assert(false, 'Coverage format must be 1 or 2.');
 	    }
 	}
-	Coverage.prototype = Object.create(Table.prototype);
+	Coverage.prototype = Object.create(Table$1.prototype);
 	Coverage.prototype.constructor = Coverage;
 
+	/**
+	 * @exports opentype.ClassDef
+	 * @class
+	 * @param {opentype.Table}
+	 * @constructor
+	 * @extends opentype.Table
+	 */
+	function ClassDef(classDefTable) {
+	    if (classDefTable.format === 1) {
+	        Table$1.call(this, 'classDefTable', [
+	            {name: 'format', type: 'USHORT', value: 1},
+	            {name: 'startGlyphID', type: 'USHORT', value: classDefTable.startGlyph} ].concat(ushortList('classValues', classDefTable.classes)));
+	    } else if (classDefTable.format === 2) {
+	        Table$1.call(this, 'classDefTable', [
+	            {name: 'format', type: 'USHORT', value: 2} ].concat(recordList('classRangeRecord', classDefTable.ranges, function(RangeRecord) {
+	            return [
+	                {name: 'startGlyphID', type: 'USHORT', value: RangeRecord.start},
+	                {name: 'endGlyphID', type: 'USHORT', value: RangeRecord.end},
+	                {name: 'class', type: 'USHORT', value: RangeRecord.classId} ];
+	        })));
+	    } else {
+	        check.assert(false, 'ClassDef format must be 1 or 2.');
+	    }
+	}
+	ClassDef.prototype = Object.create(Table$1.prototype);
+	ClassDef.prototype.constructor = ClassDef;
+
+	/**
+	 * @exports opentype.Anchor
+	 * @class
+	 * @param {opentype.Table}
+	 * @param {Map}
+	 * @constructor
+	 * @extends opentype.Table
+	 */
+	function Anchor(anchorTable, cache) {
+	    if (cache) {
+	        var cached = cache.get(anchorTable);
+	        if (cached) {
+	            return cached;
+	        }
+	        cache.set(anchorTable, this);
+	    }
+
+	    if (anchorTable.anchorFormat === 1) {
+	        Table$1.call(this, 'anchorTable', [
+	            {name: 'anchorFormat', type: 'USHORT', value: anchorTable.anchorFormat},
+	            {name: 'xCoordinate', type: 'SHORT', value: anchorTable.xCoordinate},
+	            {name: 'yCoordinate', type: 'SHORT', value: anchorTable.yCoordinate} ]);
+	    } else {
+	        check.assert(false, 'Coverage format must be 1.');
+	    }
+	}
+	Anchor.prototype = Object.create(Table$1.prototype);
+	Anchor.prototype.constructor = Anchor;
+
 	function ScriptList(scriptListTable) {
-	    Table.call(this, 'scriptListTable',
+	    Table$1.call(this, 'scriptListTable',
 	        recordList('scriptRecord', scriptListTable, function(scriptRecord, i) {
 	            var script = scriptRecord.script;
 	            var defaultLangSys = script.defaultLangSys;
 	            check.assert(!!defaultLangSys, 'Unable to write GSUB: script ' + scriptRecord.tag + ' has no default language system.');
 	            return [
 	                {name: 'scriptTag' + i, type: 'TAG', value: scriptRecord.tag},
-	                {name: 'script' + i, type: 'TABLE', value: new Table('scriptTable', [
-	                    {name: 'defaultLangSys', type: 'TABLE', value: new Table('defaultLangSys', [
+	                {name: 'script' + i, type: 'TABLE', value: new Table$1('scriptTable', [
+	                    {name: 'defaultLangSys', type: 'TABLE', value: new Table$1('defaultLangSys', [
 	                        {name: 'lookupOrder', type: 'USHORT', value: 0},
 	                        {name: 'reqFeatureIndex', type: 'USHORT', value: defaultLangSys.reqFeatureIndex}]
 	                        .concat(ushortList('featureIndex', defaultLangSys.featureIndexes)))}
@@ -2173,7 +2270,7 @@
 	                        var langSys = langSysRecord.langSys;
 	                        return [
 	                            {name: 'langSysTag' + i, type: 'TAG', value: langSysRecord.tag},
-	                            {name: 'langSys' + i, type: 'TABLE', value: new Table('langSys', [
+	                            {name: 'langSys' + i, type: 'TABLE', value: new Table$1('langSys', [
 	                                {name: 'lookupOrder', type: 'USHORT', value: 0},
 	                                {name: 'reqFeatureIndex', type: 'USHORT', value: langSys.reqFeatureIndex}
 	                                ].concat(ushortList('featureIndex', langSys.featureIndexes)))}
@@ -2183,7 +2280,7 @@
 	        })
 	    );
 	}
-	ScriptList.prototype = Object.create(Table.prototype);
+	ScriptList.prototype = Object.create(Table$1.prototype);
 	ScriptList.prototype.constructor = ScriptList;
 
 	/**
@@ -2194,18 +2291,18 @@
 	 * @extends opentype.Table
 	 */
 	function FeatureList(featureListTable) {
-	    Table.call(this, 'featureListTable',
+	    Table$1.call(this, 'featureListTable',
 	        recordList('featureRecord', featureListTable, function(featureRecord, i) {
 	            var feature = featureRecord.feature;
 	            return [
 	                {name: 'featureTag' + i, type: 'TAG', value: featureRecord.tag},
-	                {name: 'feature' + i, type: 'TABLE', value: new Table('featureTable', [
+	                {name: 'feature' + i, type: 'TABLE', value: new Table$1('featureTable', [
 	                    {name: 'featureParams', type: 'USHORT', value: feature.featureParams} ].concat(ushortList('lookupListIndex', feature.lookupListIndexes)))}
 	            ];
 	        })
 	    );
 	}
-	FeatureList.prototype = Object.create(Table.prototype);
+	FeatureList.prototype = Object.create(Table$1.prototype);
 	FeatureList.prototype.constructor = FeatureList;
 
 	/**
@@ -2217,24 +2314,26 @@
 	 * @extends opentype.Table
 	 */
 	function LookupList(lookupListTable, subtableMakers) {
-	    Table.call(this, 'lookupListTable', tableList('lookup', lookupListTable, function(lookupTable) {
+	    Table$1.call(this, 'lookupListTable', tableList('lookup', lookupListTable, function(lookupTable) {
 	        var subtableCallback = subtableMakers[lookupTable.lookupType];
 	        check.assert(!!subtableCallback, 'Unable to write GSUB lookup type ' + lookupTable.lookupType + ' tables.');
-	        return new Table('lookupTable', [
+	        return new Table$1('lookupTable', [
 	            {name: 'lookupType', type: 'USHORT', value: lookupTable.lookupType},
 	            {name: 'lookupFlag', type: 'USHORT', value: lookupTable.lookupFlag}
 	        ].concat(tableList('subtable', lookupTable.subtables, subtableCallback)));
 	    }));
 	}
-	LookupList.prototype = Object.create(Table.prototype);
+	LookupList.prototype = Object.create(Table$1.prototype);
 	LookupList.prototype.constructor = LookupList;
 
 	// Record = same as Table, but inlined (a Table has an offset and its data is further in the stream)
 	// Don't use offsets inside Records (probable bug), only in Tables.
 	var table = {
-	    Table: Table,
-	    Record: Table,
+	    Table: Table$1,
+	    Record: Table$1,
 	    Coverage: Coverage,
+	    ClassDef: ClassDef,
+	    Anchor: Anchor,
 	    ScriptList: ScriptList,
 	    FeatureList: FeatureList,
 	    LookupList: LookupList,
@@ -7786,6 +7885,119 @@
 	    return new table.Table('posTable', tbl);
 	};
 
+	subtableMakers$1[2] = function makeLookup2(subtable) {
+	    if (subtable.posFormat === 1) {
+	        var tbl = [
+	            {name: 'posFormat', type: 'USHORT', value: 1},
+	            {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)},
+	            {name: 'valueFormat1', type: 'USHORT', value: subtable.valueFormat1},
+	            {name: 'valueFormat2', type: 'USHORT', value: subtable.valueFormat2} ].concat(table.recordList('pairSet', subtable.pairSets, function(pairSet, i) {
+	            var t = [
+	                {name: 'pairValueCount', type: 'USHORT', value: pairSet.length} ];
+	            pairSet.forEach(function(pairValue, i) {
+	                t.push({name: 'secondGlyph_' + i, type: 'USHORT', value: pairValue.secondGlyph});
+	                if (subtable.valueFormat1 & 0x0001) {
+	                    t.push({name: 'xPlacement1_' + i, type: 'SHORT', value: pairValue.value1.xPlacement});
+	                }
+	                if (subtable.valueFormat1 & 0x0002) {
+	                    t.push({name: 'yPlacement1_' + i, type: 'SHORT', value: pairValue.value1.yPlacement});
+	                }
+	                if (subtable.valueFormat1 & 0x0004) {
+	                    t.push({name: 'xAdvance1_' + i, type: 'SHORT', value: pairValue.value1.xAdvance});
+	                }
+	                if (subtable.valueFormat1 & 0x0008) {
+	                    t.push({name: 'yAdvance1_' + i, type: 'SHORT', value: pairValue.value1.yAdvance});
+	                }
+	                if (subtable.valueFormat2 & 0x0001) {
+	                    t.push({name: 'xPlacement2_' + i, type: 'SHORT', value: pairValue.value2.xPlacement});
+	                }
+	                if (subtable.valueFormat2 & 0x0002) {
+	                    t.push({name: 'yPlacement2_' + i, type: 'SHORT', value: pairValue.value2.yPlacement});
+	                }
+	                if (subtable.valueFormat2 & 0x0004) {
+	                    t.push({name: 'xAdvance2_' + i, type: 'SHORT', value: pairValue.value2.xAdvance});
+	                }
+	                if (subtable.valueFormat2 & 0x0008) {
+	                    t.push({name: 'yAdvance2_' + i, type: 'SHORT', value: pairValue.value2.yAdvance});
+	                }
+	            });
+
+	            return [
+	                {name: 'pairSet_' + i, type: 'TABLE', value: new table.Table('PairSet', t)} ];
+	        }));
+
+	        return new table.Table('posTable', tbl);
+	    } else if (subtable.posFormat === 2) {
+	        var tbl = [
+	            {name: 'posFormat', type: 'USHORT', value: 2},
+	            {name: 'coverage', type: 'TABLE', value: new table.Coverage(subtable.coverage)},
+	            {name: 'valueFormat1', type: 'USHORT', value: subtable.valueFormat1},
+	            {name: 'valueFormat2', type: 'USHORT', value: subtable.valueFormat2},
+	            {name: 'classDef1', type: 'TABLE', value: new table.ClassDef(subtable.classDef1)},
+	            {name: 'classDef2', type: 'TABLE', value: new table.ClassDef(subtable.classDef2)},
+	            {name: 'class1Count', type: 'USHORT', value: subtable.class1Count},
+	            {name: 'class2Count', type: 'USHORT', value: subtable.class2Count} ].concat(table.recordList('classRecords', subtable.classRecords, function(class1, i) {
+	            var t = [];
+	            class1.forEach(function(class2, i) {
+	                if (subtable.valueFormat1 & 0x0001) {
+	                    t.push({name: 'xPlacement1_' + i, type: 'SHORT', value: class2.value1.xPlacement});
+	                }
+	                if (subtable.valueFormat1 & 0x0002) {
+	                    t.push({name: 'yPlacement1_' + i, type: 'SHORT', value: class2.value1.yPlacement});
+	                }
+	                if (subtable.valueFormat1 & 0x0004) {
+	                    t.push({name: 'xAdvance1_' + i, type: 'SHORT', value: class2.value1.xAdvance});
+	                }
+	                if (subtable.valueFormat1 & 0x0008) {
+	                    t.push({name: 'yAdvance1_' + i, type: 'SHORT', value: class2.value1.yAdvance});
+	                }
+	                if (subtable.valueFormat2 & 0x0001) {
+	                    t.push({name: 'xPlacement2_' + i, type: 'SHORT', value: class2.value2.xPlacement});
+	                }
+	                if (subtable.valueFormat2 & 0x0002) {
+	                    t.push({name: 'yPlacement2_' + i, type: 'SHORT', value: class2.value2.yPlacement});
+	                }
+	                if (subtable.valueFormat2 & 0x0004) {
+	                    t.push({name: 'xAdvance2_' + i, type: 'SHORT', value: class2.value2.xAdvance});
+	                }
+	                if (subtable.valueFormat2 & 0x0008) {
+	                    t.push({name: 'yAdvance2_' + i, type: 'SHORT', value: class2.value2.yAdvance});
+	                }
+	            });
+
+	            return t;
+	        }));
+
+	        return new table.Table('posTable', tbl);
+	    } else {
+	        check.assert(false, 'Lookup type 2 posFormat must be 1 or 2.');
+	    }
+	};
+
+	subtableMakers$1[4] = function makeLookup4(subtable) {
+	    check.assert(subtable.posFormat === 1, 'Lookup type 4 posFormat must be 1.');
+	    var cache = new Map;
+	    var tbl = [
+	        {name: 'posFormat', type: 'USHORT', value: 1},
+	        {name: 'markCoverage', type: 'TABLE', value: new table.Coverage(subtable.markCoverage || subtable.mark1Coverage)},
+	        {name: 'baseCoverage', type: 'TABLE', value: new table.Coverage(subtable.baseCoverage || subtable.mark2Coverage)},
+	        {name: 'markClassCount', type: 'USHORT', value: subtable.markClassCount},
+	        {name: 'markArray', type: 'TABLE', value: new table.Table('MarkArray', [].concat(table.recordList('MarkArray', subtable.marks || subtable.mark1s, function(mark, i) {
+	            return [
+	                {name: 'markClass_' + i, type: 'USHORT', value: mark.markClass},
+	                {name: 'markAnchor_' + i, type: 'TABLE', value: new table.Anchor(mark.markAnchor, cache)} ];
+	        })))},
+	        {name: 'baseArray', type: 'TABLE', value: new Table('BaseArray', [].concat(table.recordList('BaseArray', subtable.bases || subtable.mark2s, function(base, i) {
+	            return (base.baseAnchors || base.mark2Anchors).map(function (anchor, j) {
+	                return [
+	                    {name: 'baseAnchor_' + i + '_' + j, type: 'TABLE', value: new table.Anchor(anchor, cache)}
+	                ];
+	            }).flat();
+	        })))} ];
+	    return new table.Table('posTable', tbl);
+	};
+	subtableMakers$1[6] = subtableMakers$1[4];
+
 	subtableMakers$1[8] = function makeLookup8(subtable) {
 	    if (subtable.posFormat === 1) {
 	        var returnTable = new table.Table('chainContextTable', [
@@ -7839,6 +8051,19 @@
 	    }
 
 	    check.assert(false, 'lookup type 8 format must be 1, 2 or 3.');
+	};
+
+	subtableMakers$1[9] = function makeLookup9(subtable) {
+	    if (subtable.posFormat === 1) {
+	        var maker = subtableMakers$1[subtable.extensionLookupType];
+	        if (!maker) { check.assert(false, 'extension lookup type must be supported one.'); }
+
+	        return new table.Table('posExtensionFormat1Table', [
+	            {name: 'posFormat', type: 'USHORT', value: subtable.posFormat},
+	            {name: 'extensionLookupFormat', type: 'USHORT', value: subtable.extensionLookupType},
+	            {name: 'extensionOffset', type: 'TABLE32', value: maker(subtable.extension)} ]);
+	    }
+	    check.assert(false, 'lookup type 9 format must be 1.');
 	};
 
 	function makeGposTable(gpos) {

@@ -937,6 +937,8 @@ encode.TABLE = function(table) {
     const length = table.fields.length;
     const subtables = [];
     const subtableOffsets = [];
+    const subtables32 = [];
+    const subtableOffsets32 = [];
 
     for (let i = 0; i < length; i += 1) {
         const field = table.fields[i];
@@ -953,6 +955,10 @@ encode.TABLE = function(table) {
             subtableOffsets.push(d.length);
             d.push(...[0, 0]);
             subtables.push(bytes);
+        } else if (field.type === 'TABLE32') {
+            subtableOffsets32.push(d.length);
+            d.push(0, 0, 0, 0);
+            subtables32.push(bytes);
         } else if (field.type === 'ARRAYBUFFERLIST') {
             var offsets = [];
             subtableOffsets.push(offsets);
@@ -975,6 +981,18 @@ encode.TABLE = function(table) {
             d.push(subtables[i][j]);
         }
     }
+    for (let i = 0; i < subtables32.length; i += 1) {
+        const o = subtableOffsets32[i];
+        const offset = d.length;
+        check.argument(offset < 2**32, 'Table ' + table.tableName + ' too big.');
+        d[o] = offset >> 24;
+        d[o + 1] = (offset >> 16) & 0xff;
+        d[o + 2] = (offset >> 8) & 0xff;
+        d[o + 3] = offset & 0xff;
+        for (let j = 0; j < subtables32[i].length; j++) {
+            d.push(subtables32[i][j]);
+        }
+    }
 
     return d;
 };
@@ -993,6 +1011,8 @@ encodeAB.TABLE = function(table) {
     const length = table.fields.length;
     const subtables = [];
     const subtableOffsets = [];
+    const subtables32 = [];
+    const subtableOffsets32 = [];
 
     for (let i = 0; i < length; i += 1) {
         const field = table.fields[i];
@@ -1007,6 +1027,11 @@ encodeAB.TABLE = function(table) {
             put([0, 0]);
             const ab = encodingABFunction(value);
             subtables.push(ab);
+        } else if (field.type === 'TABLE32') {
+            subtableOffsets32.push(nextOffset);
+            put([0, 0, 0, 0]);
+            const ab = encodingABFunction(value);
+            subtables32.push(ab);
         } else if (field.type === 'ARRAYBUFFERLIST') {
             var offsets = [];
             subtableOffsets.push(offsets);
@@ -1030,6 +1055,16 @@ encodeAB.TABLE = function(table) {
         a8[o] = nextOffset >> 8;
         a8[o + 1] = nextOffset & 0xff;
         const subtable8 = new Uint8Array(subtables[i]);
+        put(subtable8);
+    }
+    for (let i = 0; i < subtables32.length; i += 1) {
+        const o = subtableOffsets32[i];
+        a8[o] = nextOffset >> 24;
+        a8[o + 1] = (nextOffset >> 16) & 0xff;
+        a8[o + 2] = (nextOffset >> 8) & 0xff;
+        a8[o + 3] = nextOffset & 0xff;
+        check.argument(nextOffset < 2**32, 'Table ' + table.tableName + ' too big.');
+        const subtable8 = new Uint8Array(subtables32[i]);
         put(subtable8);
     }
 
@@ -1058,6 +1093,8 @@ sizeOf.TABLE = function(table) {
         // Subtables take 2 more bytes for offsets.
         if (field.type === 'TABLE') {
             numBytes += 2;
+        } else if (field.type === 'TABLE32') {
+            numBytes += 4;
         }
     }
 
@@ -1067,6 +1104,10 @@ sizeOf.TABLE = function(table) {
 encode.RECORD = encode.TABLE;
 encodeAB.RECORD = encodeAB.TABLE;
 sizeOf.RECORD = sizeOf.TABLE;
+
+encode.TABLE32 = encode.TABLE;
+encodeAB.TABLE32 = encodeAB.TABLE;
+sizeOf.TABLE32 = sizeOf.TABLE;
 
 // Merge in a list of bytes.
 encode.LITERAL = function(v) {

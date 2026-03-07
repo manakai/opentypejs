@@ -130,6 +130,66 @@ function Coverage(coverageTable) {
 Coverage.prototype = Object.create(Table.prototype);
 Coverage.prototype.constructor = Coverage;
 
+/**
+ * @exports opentype.ClassDef
+ * @class
+ * @param {opentype.Table}
+ * @constructor
+ * @extends opentype.Table
+ */
+function ClassDef(classDefTable) {
+    if (classDefTable.format === 1) {
+        Table.call(this, 'classDefTable', [
+            {name: 'format', type: 'USHORT', value: 1},
+            {name: 'startGlyphID', type: 'USHORT', value: classDefTable.startGlyph},
+        ].concat(ushortList('classValues', classDefTable.classes)));
+    } else if (classDefTable.format === 2) {
+        Table.call(this, 'classDefTable', [
+            {name: 'format', type: 'USHORT', value: 2},
+        ].concat(recordList('classRangeRecord', classDefTable.ranges, function(RangeRecord) {
+            return [
+                {name: 'startGlyphID', type: 'USHORT', value: RangeRecord.start},
+                {name: 'endGlyphID', type: 'USHORT', value: RangeRecord.end},
+                {name: 'class', type: 'USHORT', value: RangeRecord.classId},
+            ];
+        })));
+    } else {
+        check.assert(false, 'ClassDef format must be 1 or 2.');
+    }
+}
+ClassDef.prototype = Object.create(Table.prototype);
+ClassDef.prototype.constructor = ClassDef;
+
+/**
+ * @exports opentype.Anchor
+ * @class
+ * @param {opentype.Table}
+ * @param {Map}
+ * @constructor
+ * @extends opentype.Table
+ */
+function Anchor(anchorTable, cache) {
+    if (cache) {
+        var cached = cache.get(anchorTable);
+        if (cached) {
+            return cached;
+        }
+        cache.set(anchorTable, this);
+    }
+
+    if (anchorTable.anchorFormat === 1) {
+        Table.call(this, 'anchorTable', [
+            {name: 'anchorFormat', type: 'USHORT', value: anchorTable.anchorFormat},
+            {name: 'xCoordinate', type: 'SHORT', value: anchorTable.xCoordinate},
+            {name: 'yCoordinate', type: 'SHORT', value: anchorTable.yCoordinate},
+        ]);
+    } else {
+        check.assert(false, 'Coverage format must be 1.');
+    }
+}
+Anchor.prototype = Object.create(Table.prototype);
+Anchor.prototype.constructor = Anchor;
+
 function ScriptList(scriptListTable) {
     Table.call(this, 'scriptListTable',
         recordList('scriptRecord', scriptListTable, function(scriptRecord, i) {
@@ -210,6 +270,8 @@ export default {
     Table,
     Record: Table,
     Coverage,
+    ClassDef,
+    Anchor,
     ScriptList,
     FeatureList,
     LookupList,
