@@ -5,6 +5,8 @@ all: build
 updatenightly:
 	$(CURL) -sSLf https://raw.githubusercontent.com/wakaba/ciconfig/master/ciconfig | RUN_GIT=1 REMOVE_UNUSED=1 perl
 
+deps: build
+
 build: dist/opentype.js
 
 dist/opentype.js: src/*.js src/*/*.js
